@@ -196,6 +196,7 @@ public final class UiTests {
         robot(w, s, ran);
         tooltip(w, s, t);
         connections(w, s);
+        menusAndDialogs(w, s);
         ui(() -> w.editor.onRun = realRun.get());   // далі — справжній запуск
         if (h2 != null) live(w, s, h2);
         else System.out.println("— запит у вікні пропущено: немає драйвера H2 у кеші (спершу ./build.sh)");
@@ -330,6 +331,59 @@ public final class UiTests {
     }
 
     // Вікно підключень наживо: нове підключення — назва й пароль натисканнями, ↵ = «Готово»; Esc закриває без змін.
+    // Меню й нові вікна: Ctrl+Shift+, — «Підключення», Ctrl+, — «Налаштування» (мова — у settings.json), «Про Ferret» —
+    // з версією; підписи клавіш у «Гарячих клавішах» — як на цій системі.
+    static void menusAndDialogs(MainWindow w, AppState s) throws Exception {
+        boolean mac = Theme.MAC;
+        check(Help.keys(javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_COMMA, Theme.MENU_MASK | java.awt.event.InputEvent.SHIFT_DOWN_MASK)).equals(mac ? "⇧⌘," : "Ctrl+Shift+,")
+                && Help.keys(javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, Theme.MENU_MASK)).equals(mac ? "⌘↵" : "Ctrl+Enter"), "гарячі клавіші — підписи як на цій системі");
+        java.util.Set<String> menus = new java.util.LinkedHashSet<>();
+        ui(() -> { for (int i = 0; i < w.getJMenuBar().getMenuCount(); i++) if (w.getJMenuBar().getMenu(i) != null) menus.add(w.getJMenuBar().getMenu(i).getText()); });   // знак FERRET — не меню
+        check(menus.containsAll(java.util.List.of("Файл", "Редагування", "Запит", "Підключення", "Довідка")), "меню: " + menus);
+        java.awt.Robot r = new java.awt.Robot();
+        r.setAutoDelay(30);
+        ui(() -> { w.toFront(); w.editor.area().requestFocusInWindow(); });
+        pause(400);
+        if (!w.editor.area().isFocusOwner()) { System.out.println("— натискання меню пропущено: вікно не отримало фокус"); return; }
+        int m = Theme.MENU_MASK == java.awt.event.InputEvent.META_DOWN_MASK ? KeyEvent.VK_META : KeyEvent.VK_CONTROL;
+        press(r, m, KeyEvent.VK_SHIFT, KeyEvent.VK_COMMA);
+        ConnectionsDialog cd = waitDialog();
+        check(cd != null, "натиск Ctrl+Shift+, — вікно «Підключення»");
+        if (cd != null) { ui(cd::dispose); pause(300); }
+        ui(() -> w.editor.area().requestFocusInWindow());
+        pause(300);
+        press(r, m, KeyEvent.VK_COMMA);
+        javax.swing.JDialog sd = waitTitled(ferret.core.I18n.t("settings.title"));
+        check(sd != null, "натиск Ctrl+, — вікно «Налаштування»");
+        if (sd != null) {
+            ui(() -> {
+                javax.swing.JComboBox<?> lang = find(sd, javax.swing.JComboBox.class);
+                lang.setSelectedItem("English");
+                button(sd, ferret.core.I18n.t("settings.save")).doClick();
+            });
+            javax.swing.JDialog ask = waitTitled(ferret.core.I18n.t("main.restart.title"));   // «Перезапустити зараз?» — пізніше
+            if (ask != null) ui(() -> button(ask, ferret.core.I18n.t("main.restart.later")).doClick());
+            pause(300);
+            check(Files.readString(Store.file("settings.json")).contains("\"language\" : \"en\""), "збережена мова — у settings.json");
+        }
+        SwingUtilities.invokeLater(() -> AboutDialog.show(w));
+        javax.swing.JDialog about = waitTitled(ferret.core.I18n.t("main.menu.about"));
+        AtomicReference<Boolean> hasVersion = new AtomicReference<>(false);
+        if (about != null) ui(() -> {
+            for (javax.swing.JLabel l : all(about, javax.swing.JLabel.class)) if (l.getText() != null && l.getText().contains(ferret.App.version())) hasVersion.set(true);
+            about.dispose();
+        });
+        check(about != null && hasVersion.get(), "«Про Ferret» — з поточною версією " + ferret.App.version());
+    }
+
+    static javax.swing.JDialog waitTitled(String title) throws Exception {
+        for (int i = 0; i < 40; i++) {
+            for (java.awt.Window x : java.awt.Window.getWindows()) if (x instanceof javax.swing.JDialog d && d.isShowing() && title.equals(d.getTitle())) return d;
+            pause(100);
+        }
+        return null;
+    }
+
     static void connections(MainWindow w, AppState s) throws Exception {
         java.awt.Robot r = new java.awt.Robot();
         r.setAutoDelay(30);

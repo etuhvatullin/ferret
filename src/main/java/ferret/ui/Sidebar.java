@@ -166,7 +166,7 @@ public final class Sidebar extends JPanel {
         left.add(Box.createHorizontalGlue());
         JPanel right = Ui.row(0, 0, 0, 0);
         right.add(lock);
-        JButton gear = Ui.iconButton(Ui.icon(Ui.Glyph.GEAR, Theme.MUTED), I18n.t("side.connectionSettingsTip", Theme.CMD));
+        JButton gear = Ui.iconButton(Ui.icon(Ui.Glyph.GEAR, Theme.MUTED), I18n.t("side.connectionSettingsTip", Theme.MAC ? "⇧⌘," : "Ctrl+Shift+,"));
         gear.addActionListener(e -> onEditConnection.accept(state.currentConnection()));
         right.add(gear);
         r.add(left, BorderLayout.CENTER);

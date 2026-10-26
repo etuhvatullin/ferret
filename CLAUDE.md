@@ -14,6 +14,9 @@ in git. Code comments are in Ukrainian.
 - `update.json` (update URL; for a private channel also a read-only key) is never committed: `release.sh` writes it
   before packaging.
 - Behaviour follows DataGrip; the code is our own.
+- Menus: File · Edit · Query · Connections · Help — each item under the heading that names it (Query holds only
+  run/stop). `Ctrl+,` / `⌘,` is Settings, `Ctrl+Shift+,` — Connections. On macOS "About" and "Settings…" live in
+  the app menu (`Desktop.setAboutHandler` / `setPreferencesHandler` — Java can't add other items there).
 - **Every user-visible text goes through `I18n`** (see Languages below) — no string literals in the UI.
 
 ## Commands
@@ -31,7 +34,8 @@ The script headers are the source of truth; in short:
 `core/` — no Swing: models and file formats (`Model`, `Json`, `Store`), passwords, drivers (`Drivers` — download,
 `Jdbc` — queries, tree, read-only guard, human-readable network errors), SQL text (`SqlText`, `Format`, `Dialect`),
 result values (`Values`), `I18n`, `Updater`. `ui/` — Swing: `AppState` (state and `emit` events), `MainWindow`,
-`EditorPanel`, `ResultPanel`, `Sidebar`, `TabBar`, `ConnectionsDialog`, `SuggestionPopup`, `Splash`, `UpdateBanner`,
+`EditorPanel`, `ResultPanel`, `Sidebar`, `TabBar`, `ConnectionsDialog`, `SettingsDialog`, `AboutDialog`, `Help`
+(Help menu: shortcuts built from the menu itself, bug report, links), `SuggestionPopup`, `Splash`, `UpdateBanner`,
 `Theme` / `Ui` ("Nora" colours, drawn icons — never emoji as icons). New non-UI logic goes to `core/` with a test in
 `src/test/java/ferret/tests/`.
 
@@ -39,7 +43,7 @@ result values (`Values`), `I18n`, `Updater`. `ui/` — Swing: `AppState` (state 
 
 English (default), Ukrainian, Russian, German, Spanish — `src/main/resources/ferret/i18n/messages*.properties`
 (UTF-8; `messages.properties` is English). First launch follows the system language if it is one of the five,
-otherwise English; the choice is `settings.json` → `language` (menu **Query → Language**, then a restart).
+otherwise English; the choice is `settings.json` → `language` (**Settings**, `Ctrl+,`, then a restart).
 
 - `I18n.t("area.name", args…)` — MessageFormat only when args are given; then a literal apostrophe is `''`.
 - Plurals — `I18n.plural("key", n)`: `key.one / key.few / key.many` in Ukrainian and Russian, `key.one / key.other`

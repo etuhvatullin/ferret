@@ -11,7 +11,6 @@ import ferret.ui.AppState.HistoryItem;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
-import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
@@ -22,7 +21,6 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
-import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JRootPane;
 import javax.swing.JSplitPane;
 import javax.swing.KeyStroke;
@@ -126,6 +124,10 @@ public final class MainWindow extends JFrame {
         // ⌘Q на Mac типово закриває Java одразу, повз windowClosing: розмір вікна й налаштування не зберігались
         if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.APP_QUIT_HANDLER))
             java.awt.Desktop.getDesktop().setQuitHandler((e, response) -> quit());
+        if (Theme.MAC && java.awt.Desktop.isDesktopSupported()) {   // меню «Ferret» на Mac: «Про Ferret» і «Налаштування… ⌘,»
+            java.awt.Desktop.getDesktop().setAboutHandler(e -> AboutDialog.show(this));
+            java.awt.Desktop.getDesktop().setPreferencesHandler(e -> openSettings());
+        }
         addWindowListener(new WindowAdapter() {
             @Override public void windowClosing(WindowEvent e) { quit(); }
         });
@@ -309,32 +311,21 @@ public final class MainWindow extends JFrame {
 
     // MARK: меню
 
+    // Меню: Файл · Редагування · Запит · Підключення · Довідка. На Mac «Про Ferret» і «Налаштування… ⌘,» — у меню
+    // «Ferret» (Java дає туди лише ці системні пункти), а «Вийти» там же від системи.
     JMenuBar menus() {
         JMenuBar bar = new JMenuBar();
         int M = Theme.MENU_MASK;
-        JMenu q = new JMenu(I18n.t("main.menu.query"));
-        q.add(item(I18n.t("main.run"), KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, M), e -> editor.requestRun()));
-        q.add(item(I18n.t("main.stop"), KeyStroke.getKeyStroke(KeyEvent.VK_PERIOD, M), e -> state.stop(state.current)));
-        q.addSeparator();
-        q.add(item(I18n.t("main.menu.newtab"), KeyStroke.getKeyStroke(KeyEvent.VK_T, M), e -> state.newTab("", null, state.currentConnectionID)));
-        q.add(item(I18n.t("main.menu.reopen"), KeyStroke.getKeyStroke(KeyEvent.VK_T, M | InputEvent.SHIFT_DOWN_MASK), e -> state.reopenTab()));
-        q.add(item(I18n.t("main.menu.closetab"), KeyStroke.getKeyStroke(KeyEvent.VK_W, M), e -> state.closeTab(state.current)));
-        q.add(item(I18n.t("main.menu.refreshschema"), KeyStroke.getKeyStroke(KeyEvent.VK_R, M), e -> state.refreshSchema()));
-        q.addSeparator();
-        for (int i = 0; i < 9; i++) {
-            int n = i;
-            q.add(item(I18n.t("main.menu.recentserver", i + 1), KeyStroke.getKeyStroke(KeyEvent.VK_1 + i, InputEvent.CTRL_DOWN_MASK), e -> {
-                List<Connection> r = state.recentConnections();
-                if (n < r.size()) state.goToServer(r.get(n).id);
-            }));
+        JMenu file = new JMenu(I18n.t("main.menu.file"));
+        file.add(item(I18n.t("main.menu.newtab"), KeyStroke.getKeyStroke(KeyEvent.VK_T, M), e -> state.newTab("", null, state.currentConnectionID)));
+        file.add(item(I18n.t("main.menu.reopen"), KeyStroke.getKeyStroke(KeyEvent.VK_T, M | InputEvent.SHIFT_DOWN_MASK), e -> state.reopenTab()));
+        file.add(item(I18n.t("main.menu.closetab"), KeyStroke.getKeyStroke(KeyEvent.VK_W, M), e -> state.closeTab(state.current)));
+        if (!Theme.MAC) {
+            file.addSeparator();
+            file.add(item(I18n.t("main.menu.settings"), KeyStroke.getKeyStroke(KeyEvent.VK_COMMA, M), e -> openSettings()));
+            file.addSeparator();
+            file.add(item(I18n.t("main.menu.quit"), KeyStroke.getKeyStroke(KeyEvent.VK_Q, M), e -> quit()));
         }
-        q.addSeparator();
-        q.add(item(I18n.t("main.menu.connections"), KeyStroke.getKeyStroke(KeyEvent.VK_COMMA, M), e -> openConnections(state.currentConnectionID, null)));
-        q.add(item(I18n.t("main.menu.newconnection"), null, e -> openConnections(null, DBKind.TRINO)));
-        q.addSeparator();
-        q.add(languageMenu());
-        q.add(item(I18n.t("main.menu.checkupdates"), null, e -> update.checkNow(true)));
-        if (!Theme.MAC) q.add(item(I18n.t("main.menu.quit"), KeyStroke.getKeyStroke(KeyEvent.VK_Q, M), e -> quit()));
 
         JMenu ed = new JMenu(I18n.t("main.menu.edit"));
         ed.add(item(I18n.t("main.menu.find"), KeyStroke.getKeyStroke(KeyEvent.VK_F, M), e -> {   // курсор у результаті — пошук у результаті
@@ -349,25 +340,39 @@ public final class MainWindow extends JFrame {
         ed.add(item(I18n.t("main.menu.comment"), KeyStroke.getKeyStroke(KeyEvent.VK_SLASH, M), e -> editor.toggleComment()));
         ed.add(item(I18n.t("main.menu.indent"), KeyStroke.getKeyStroke(KeyEvent.VK_CLOSE_BRACKET, M), e -> editor.indent(false)));
         ed.add(item(I18n.t("main.menu.outdent"), KeyStroke.getKeyStroke(KeyEvent.VK_OPEN_BRACKET, M), e -> editor.indent(true)));
-        bar.add(q);
-        bar.add(ed);
+
+        JMenu q = new JMenu(I18n.t("main.menu.query"));
+        q.add(item(I18n.t("main.run"), KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, M), e -> editor.requestRun()));
+        q.add(item(I18n.t("main.stop"), KeyStroke.getKeyStroke(KeyEvent.VK_PERIOD, M), e -> state.stop(state.current)));
+
+        JMenu conn = new JMenu(I18n.t("main.menu.conn"));
+        conn.add(item(I18n.t("main.menu.connections"), KeyStroke.getKeyStroke(KeyEvent.VK_COMMA, M | InputEvent.SHIFT_DOWN_MASK),
+                e -> openConnections(state.currentConnectionID, null)));
+        conn.add(item(I18n.t("main.menu.newconnection"), null, e -> openConnections(null, DBKind.TRINO)));
+        conn.add(item(I18n.t("main.menu.refreshschema"), KeyStroke.getKeyStroke(KeyEvent.VK_R, M), e -> state.refreshSchema()));
+        conn.addSeparator();
+        for (int i = 0; i < 9; i++) {
+            int n = i;
+            conn.add(item(I18n.t("main.menu.recentserver", i + 1), KeyStroke.getKeyStroke(KeyEvent.VK_1 + i, InputEvent.CTRL_DOWN_MASK), e -> {
+                List<Connection> r = state.recentConnections();
+                if (n < r.size()) state.goToServer(r.get(n).id);
+            }));
+        }
+
+        JMenu help = new JMenu(I18n.t("main.menu.help"));
+        help.add(item(I18n.t("main.menu.shortcuts"), null, e -> Help.shortcuts(this, getJMenuBar())));
+        help.add(item(I18n.t("main.menu.checkupdates"), null, e -> update.checkNow(true)));
+        help.add(item(I18n.t("main.menu.reportbug"), null, e -> Help.reportBug(this)));
+        if (!Theme.MAC) {
+            help.addSeparator();
+            help.add(item(I18n.t("main.menu.about"), null, e -> AboutDialog.show(this)));
+        }
+        for (JMenu m : new JMenu[] {file, ed, q, conn, help}) bar.add(m);
         return bar;
     }
 
-    // Мова інтерфейсу: назви мов — їхніми ж мовами; не англійською — з «(Language)», щоб її знайшов і той, хто мови не знає
-    JMenu languageMenu() {
-        JMenu m = new JMenu(I18n.t("main.language") + (I18n.lang().equals("en") ? "" : " (Language)"));
-        ButtonGroup g = new ButtonGroup();
-        for (var l : I18n.NAMES.entrySet()) {
-            JRadioButtonMenuItem i = new JRadioButtonMenuItem(l.getValue(), l.getKey().equals(I18n.lang()));
-            i.addActionListener(e -> chooseLanguage(l.getKey()));
-            g.add(i);
-            m.add(i);
-        }
-        return m;
-    }
+    void openSettings() { SettingsDialog.show(this, state); }
 
-    // Мова береться при запуску: записуємо вибір і пропонуємо перезапуск (текст — ще поточною мовою)
     void chooseLanguage(String code) {
         state.settings.put("language", code);
         state.saveSettings();

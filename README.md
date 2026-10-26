@@ -6,7 +6,7 @@ table. Connections are **read-only by default**: a query that changes data (INSE
 sent to the server.
 
 No Java installation needed — it ships inside the app. Interface languages: English, Ukrainian, Russian, German and
-Spanish (follows your system language; switch any time in **Query → Language**).
+Spanish (follows your system language; switch any time in **Settings**, `Ctrl+,` / `⌘,`).
 
 ## Install
 
@@ -58,7 +58,8 @@ Passwords are stored only on your computer, in an encrypted file, and are never 
 | New tab / close tab | `Ctrl+T` / `Ctrl+W` | `⌘T` / `⌘W` |
 | Reopen closed tab | `Ctrl+Shift+T` | `⇧⌘T` |
 | Recent servers 1…9 | `Ctrl+1` … `Ctrl+9` | `⌃1` … `⌃9` |
-| Connections | `Ctrl+,` | `⌘,` |
+| Settings | `Ctrl+,` | `⌘,` |
+| Connections | `Ctrl+Shift+,` | `⇧⌘,` |
 | Refresh table tree | `Ctrl+R` | `⌘R` |
 | Find in query (in results — search in results) | `Ctrl+F`, then `Ctrl+G` | `⌘F`, then `⌘G` |
 | Format query | `Ctrl+Alt+L` | `⌥⌘L` |
@@ -69,7 +70,8 @@ Passwords are stored only on your computer, in an encrypted file, and are never 
 
 On launch Ferret checks for a new version (for at most 3 seconds; offline it simply opens). If there is one, it
 offers "Update" or "Later". "Update" downloads and verifies the archive, and Ferret restarts as the new version.
-Check manually via **Query → Check for updates**. Connections, passwords and tabs are kept.
+Check manually via **Help → Check for updates**; automatic checks can be turned off in **Settings**. Connections,
+passwords and tabs are kept.
 
 ## Where your data lives
 
@@ -77,7 +79,7 @@ Check manually via **Query → Check for updates**. Connections, passwords and t
 - macOS: `~/Library/Application Support/Ferret/v2`
 
 Connections, tabs, query history, encrypted passwords and the error log `ferret.log` — attach it when reporting a
-problem in [Issues](../../issues).
+problem (**Help → Report a problem** opens a pre-filled [issue](../../issues)).
 
 ## Building
 

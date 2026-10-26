@@ -50,10 +50,16 @@ public final class Splash extends JFrame {
     private Timer anim;
 
     public static void start(Consumer<Updater.Release> openApp) {
-        if (!Updater.configured()) { openApp.accept(null); return; }
+        if (!Updater.configured() || !checksAtStart()) { openApp.accept(null); return; }
         Splash s = new Splash(openApp);
         s.setVisible(true);
         s.check();
+    }
+
+    // «Налаштування → Перевіряти оновлення під час запуску» (за замовчуванням так); вимкнено — ні заставки, ні щоденної
+    // перевірки у фоні, лише «Довідка → Перевірити оновлення»
+    public static boolean checksAtStart() {
+        return ferret.core.Json.bool(ferret.core.Json.map(ferret.core.Store.loadJSON("settings.json")).get("checkUpdates"), true);
     }
 
     private Splash(Consumer<Updater.Release> openApp) {
@@ -92,7 +98,7 @@ public final class Splash extends JFrame {
         };
         root.setOpaque(false);
         root.setBorder(BorderFactory.createEmptyBorder(pad, pad, pad, pad));
-        root.add(burrow(), BorderLayout.WEST);
+        root.add(burrow(H), BorderLayout.WEST);
         root.add(side(), BorderLayout.CENTER);
         setContentPane(root);
         setSize(W + pad * 2, H + pad * 2);
@@ -100,8 +106,8 @@ public final class Splash extends JFrame {
         showChecking();
     }
 
-    // Ліворуч — нора з тхором
-    private JComponent burrow() {
+    // Ліворуч — нора з тхором (її ж бере вікно «Про Ferret»)
+    static JComponent burrow(int height) {
         JPanel left = new JPanel(new GridBagLayout()) {
             @Override protected void paintComponent(Graphics g0) {
                 Graphics2D g = (Graphics2D) g0.create();
@@ -112,7 +118,7 @@ public final class Splash extends JFrame {
                 g.dispose();
             }
         };
-        left.setPreferredSize(new Dimension(210, H));
+        left.setPreferredSize(new Dimension(210, height));
         left.add(picture(Theme.image("icon.png"), 116));
         return left;
     }

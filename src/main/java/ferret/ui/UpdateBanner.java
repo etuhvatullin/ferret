@@ -58,6 +58,7 @@ public final class UpdateBanner extends JPanel {
     void checkLater() {
         if (!Updater.configured()) return;
         new Thread(Updater::cleanupOld, "ferret-cleanup").start();
+        if (!Splash.checksAtStart()) return;   // вимкнено в «Налаштуваннях»: лише ручна перевірка
         if (!checkedAtStart) {
             Timer first = new Timer(5000, e -> checkNow(false));
             first.setRepeats(false);
