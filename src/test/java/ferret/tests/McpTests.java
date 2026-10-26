@@ -40,6 +40,8 @@ final class McpTests {
         Mcp none = new Mcp(new ByteArrayOutputStream(), "fk_будь-що", "test");
         check(text(none.callTool(1, "list_connections", Map.of())).contains("not set up"), "ключа ще немає — відмова з порадою, де його взяти");
         String key = McpAccess.newKey();
+        ferret.core.Passwords.set(UUID.randomUUID(), "інший пароль");   // збереження паролів підключень не чіпає ключа
+        check(key.equals(McpAccess.key()), "ключ лежить серед паролів і переживає їх збереження");
         check(err(new Mcp(new ByteArrayOutputStream(), "fk_wrong", "test").callTool(1, "list_connections", Map.of())), "чужий ключ — відмова");
         check(err(new Mcp(new ByteArrayOutputStream(), null, "test").callTool(1, "list_connections", Map.of())), "без ключа — відмова");
 
@@ -69,6 +71,13 @@ final class McpTests {
         List<McpAccess.Entry> j = McpAccess.journal(10);
         check(j.size() == 5 && j.get(0).sql().startsWith("insert") && j.get(0).rows() == null && j.get(0).error() == null
                 && j.get(1).connection().equals("hidden") && j.get(1).error() != null, "журнал: кожен запит, новіші першими, і відмови теж");
+
+        for (int i = 0; i < 3000; i++) McpAccess.log(new McpAccess.Entry(java.time.Instant.now(), "t", "c", "select " + i + " -- " + "x".repeat(400), 1, 1, null));
+        List<McpAccess.Entry> tail = McpAccess.journal(100_000);
+        long size = java.nio.file.Files.size(Store.file("mcp-journal.jsonl"));
+        check(size < 1_000_000 && tail.get(0).sql().startsWith("select 2999 ") && tail.size() > 500
+                && java.nio.file.Files.readAllLines(Store.file("mcp-journal.jsonl")).stream().allMatch(l -> l.startsWith("{") && l.endsWith("}")),
+                "журнал понад 1 МБ — лишається новіша половина, цілими рядками (" + size / 1000 + " КБ, " + tail.size() + " записів)");
 
         String in = """
                 {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","clientInfo":{"name":"claude-code"}}}

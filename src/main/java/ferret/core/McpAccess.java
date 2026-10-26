@@ -106,7 +106,7 @@ public final class McpAccess {
              FileLock ignored = ch.lock()) {
             if (ch.size() + line.length > JOURNAL_MAX) {   // лишити новішу половину, з початку рядка
                 ByteBuffer all = ByteBuffer.allocate((int) ch.size());
-                ch.read(all, 0);
+                while (all.hasRemaining() && ch.read(all, all.position()) > 0) { }   // read може віддати менше, ніж просили
                 byte[] b = all.array();
                 int from = b.length / 2;
                 while (from < b.length && b[from - 1] != '\n') from++;
