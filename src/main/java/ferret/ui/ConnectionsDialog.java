@@ -2,6 +2,7 @@ package ferret.ui;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import ferret.core.Drivers;
+import ferret.core.I18n;
 import ferret.core.Jdbc;
 import ferret.core.Model;
 import ferret.core.Model.Connection;
@@ -65,14 +66,14 @@ public final class ConnectionsDialog extends JDialog {
     private final JTextField search = new JTextField();
     private final JPanel formHolder = new JPanel(new BorderLayout());
     private final JLabel testResult = Ui.label("", Theme.MUTED, false, 12);
-    private final JButton testBtn = Ui.plainButton("Перевірити зʼєднання", null);
-    private final JButton applyBtn = Ui.plainButton("Застосувати", null);
-    private final JButton doneBtn = Ui.accentButton("Готово", null);
+    private final JButton testBtn = Ui.plainButton(I18n.t("conn.test"), null);
+    private final JButton applyBtn = Ui.plainButton(I18n.t("conn.apply"), null);
+    private final JButton doneBtn = Ui.accentButton(I18n.t("conn.done"), null);
     private Connection selected;
     private boolean rebuilding;
 
     public ConnectionsDialog(JFrame owner, AppState state, UUID select, DBKind newKind) {
-        super(owner, "Підключення", true);
+        super(owner, I18n.t("conn.title"), true);
         this.state = state;
         for (Connection c : state.connections) drafts.add(c.copy());
         setSize(1040, 720);
@@ -99,18 +100,18 @@ public final class ConnectionsDialog extends JDialog {
         p.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, Theme.LINE));
         JPanel tools = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 6));
         tools.setOpaque(false);
-        JButton add = Ui.iconButton(Ui.icon(Ui.Glyph.PLUS, Theme.TEXT), "Нове підключення");
+        JButton add = Ui.iconButton(Ui.icon(Ui.Glyph.PLUS, Theme.TEXT), I18n.t("conn.add"));
         add.addActionListener(e -> addMenu().show(add, 0, add.getHeight()));
-        JButton remove = Ui.iconButton(Ui.icon(Ui.Glyph.MINUS, Theme.TEXT), "Видалити вибране");
+        JButton remove = Ui.iconButton(Ui.icon(Ui.Glyph.MINUS, Theme.TEXT), I18n.t("conn.remove"));
         remove.addActionListener(e -> deleteSelected());
-        JButton dup = Ui.iconButton(Ui.icon(Ui.Glyph.COPY, Theme.TEXT), "Копія вибраного — з тим самим паролем");
+        JButton dup = Ui.iconButton(Ui.icon(Ui.Glyph.COPY, Theme.TEXT), I18n.t("conn.duplicate"));
         dup.addActionListener(e -> duplicate());
         tools.add(add);
         tools.add(remove);
         tools.add(dup);
         Box top = Box.createVerticalBox();
         top.add(tools);
-        search.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Знайти підключення");
+        search.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, I18n.t("conn.search"));
         search.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, Ui.icon(Ui.Glyph.SEARCH, Theme.MUTED));
         search.getDocument().addDocumentListener(Sidebar.onChange(this::rebuildList));
         JPanel sw = Ui.row(0, 8, 6, 8);
@@ -130,7 +131,7 @@ public final class ConnectionsDialog extends JDialog {
             r.setBorder(BorderFactory.createEmptyBorder(3, 12, 3, 10));
             r.setBackground(on ? Theme.ACCENT : Theme.PANEL);
             r.add(Ui.dot(Theme.mark(c)), BorderLayout.WEST);
-            r.add(Ui.label(c.name.isEmpty() ? "без назви" : c.name, on ? Theme.ON_ACCENT : Theme.TEXT, on, 13), BorderLayout.CENTER);
+            r.add(Ui.label(c.name.isEmpty() ? I18n.t("conn.unnamed") : c.name, on ? Theme.ON_ACCENT : Theme.TEXT, on, 13), BorderLayout.CENTER);
             return r;
         });
         list.addMouseListener(new MouseAdapter() {
@@ -161,7 +162,7 @@ public final class ConnectionsDialog extends JDialog {
 
     JPopupMenu addMenu() {
         JPopupMenu m = new JPopupMenu();
-        JMenuItem h1 = new JMenuItem("НАЙУЖИВАНІШІ — драйвер завантажиться сам");
+        JMenuItem h1 = new JMenuItem(I18n.t("conn.menu.popular"));
         h1.setEnabled(false);
         m.add(h1);
         for (DBKind k : DBKind.values()) {
@@ -170,7 +171,7 @@ public final class ConnectionsDialog extends JDialog {
             i.addActionListener(e -> add(k));
             m.add(i);
         }
-        JMenu more = new JMenu("Інші бази");
+        JMenu more = new JMenu(I18n.t("conn.menu.more"));
         for (DBKind k : DBKind.values()) {
             if (k.popular() || k == DBKind.JDBC) continue;
             JMenuItem i = new JMenuItem(k.title + "   · " + Drivers.size(k));
@@ -179,7 +180,7 @@ public final class ConnectionsDialog extends JDialog {
         }
         m.add(more);
         m.addSeparator();
-        JMenuItem own = new JMenuItem("Інша база — свій драйвер (.jar)…");
+        JMenuItem own = new JMenuItem(I18n.t("conn.menu.own"));
         own.addActionListener(e -> add(DBKind.JDBC));
         m.add(own);
         return m;
@@ -187,7 +188,7 @@ public final class ConnectionsDialog extends JDialog {
 
     void add(DBKind k) {
         Connection c = Connection.blank(k);
-        c.name = "Нове підключення";
+        c.name = I18n.t("conn.newname");
         c.color = Model.leastUsedColor(drafts);
         drafts.add(c);
         search.setText("");
@@ -199,7 +200,7 @@ public final class ConnectionsDialog extends JDialog {
         if (selected == null) return;
         Connection c = selected.copy();
         c.id = UUID.randomUUID();
-        c.name += " (копія)";
+        c.name = I18n.t("conn.copyname", c.name);
         c.color = Model.leastUsedColor(drafts);
         String pw = passwords.containsKey(selected.id) ? passwords.get(selected.id) : Passwords.get(selected.id);
         if (pw != null) passwords.put(c.id, pw);
@@ -210,8 +211,8 @@ public final class ConnectionsDialog extends JDialog {
 
     void deleteSelected() {
         if (selected == null) return;
-        int a = JOptionPane.showConfirmDialog(this, "Видалити підключення «" + selected.name + "»?\nПароль теж буде прибрано. Історія запитів лишиться. "
-                + "Остаточно — після «Застосувати» чи «Готово».", "Видалити підключення", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
+        int a = JOptionPane.showConfirmDialog(this, I18n.t("conn.delete.confirm", selected.name), I18n.t("conn.delete.title"),
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
         if (a != JOptionPane.OK_OPTION) return;
         deleted.add(selected.id);
         rebuildList();
@@ -233,7 +234,7 @@ public final class ConnectionsDialog extends JDialog {
         try {
             formHolder.removeAll();
             if (selected == null) {
-                JLabel l = Ui.label("Додай підключення кнопкою «+» ліворуч.", Theme.MUTED, false, 13);
+                JLabel l = Ui.label(I18n.t("conn.empty"), Theme.MUTED, false, 13);
                 l.setHorizontalAlignment(JLabel.CENTER);
                 formHolder.add(l, BorderLayout.CENTER);
             } else {
@@ -248,7 +249,7 @@ public final class ConnectionsDialog extends JDialog {
             boolean valid = drafts.stream().filter(x -> !deleted.contains(x.id)).allMatch(Drivers::complete);
             applyBtn.setEnabled(valid);
             doneBtn.setEnabled(valid);
-            doneBtn.setToolTipText(valid ? null : "У кожного підключення має бути назва й адреса (хост, файл бази чи адреса JDBC)");
+            doneBtn.setToolTipText(valid ? null : I18n.t("conn.done.invalid"));
             testBtn.setEnabled(selected != null && Drivers.complete(selected));
         } finally {
             rebuilding = false;
@@ -258,8 +259,8 @@ public final class ConnectionsDialog extends JDialog {
     // Пароль, скопійований із файлу, часто захоплює зайве (так 25.10.2026 не пройшов вхід у ClickHouse BI).
     static String passwordWarning(String p) {
         if (p == null || p.isEmpty()) return null;
-        if (!p.equals(p.strip())) return "Пароль починається або закінчується пробілом — так задумано?";
-        if (p.length() >= 2 && p.charAt(0) == p.charAt(p.length() - 1) && "\"'`".indexOf(p.charAt(0)) >= 0) return "Пароль у лапках — у .env лапки не є частиною пароля.";
+        if (!p.equals(p.strip())) return I18n.t("conn.pw.spaces");
+        if (p.length() >= 2 && p.charAt(0) == p.charAt(p.length() - 1) && "\"'`".indexOf(p.charAt(0)) >= 0) return I18n.t("conn.pw.quoted");
         return null;
     }
 
@@ -281,8 +282,8 @@ public final class ConnectionsDialog extends JDialog {
                 default -> false;
             };
 
-            JTextField name = text(c.name, "Напр., Trino · прод", v -> { c.name = v; rebuildList(); refreshButtons(); });
-            field("Назва", name);
+            JTextField name = text(c.name, I18n.t("conn.name.hint"), v -> { c.name = v; rebuildList(); refreshButtons(); });
+            field(I18n.t("conn.name"), name);
             JPanel colors = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
             colors.setOpaque(false);
             for (int i = 0; i < Model.COLOR_COUNT; i++) {
@@ -306,8 +307,8 @@ public final class ConnectionsDialog extends JDialog {
                 });
                 colors.add(sw);
             }
-            colors.setToolTipText("Колір вкладок цього сервера й смуги над редактором");
-            field("Колір", colors);
+            colors.setToolTipText(I18n.t("conn.color.tip"));
+            field(I18n.t("conn.color"), colors);
             JComboBox<DBKind> kind = new JComboBox<>(DBKind.values());
             kind.setSelectedItem(k);
             kind.setRenderer((l, v, i, sel, f) -> {
@@ -327,40 +328,40 @@ public final class ConnectionsDialog extends JDialog {
                 SwingUtilities.invokeLater(ConnectionsDialog.this::rebuildForm);
                 rebuildList();
             });
-            field("База", kind);
+            field(I18n.t("conn.kind"), kind);
             section();
 
             if (k.isFile()) {
                 JPanel fp = new JPanel(new BorderLayout(6, 0));
                 fp.setOpaque(false);
-                JTextField file = text(c.database, k == DBKind.SQLITE ? "/шлях/до/бази.db" : "порожньо — база в памʼяті", v -> c.database = v);
-                JButton pick = Ui.plainButton("Вибрати…", null);
+                JTextField file = text(c.database, k == DBKind.SQLITE ? I18n.t("conn.file.hint.sqlite") : I18n.t("conn.file.hint.memory"), v -> c.database = v);
+                JButton pick = Ui.plainButton(I18n.t("conn.file.pick"), null);
                 pick.addActionListener(e -> {
                     JFileChooser fc = new JFileChooser();
                     if (fc.showOpenDialog(ConnectionsDialog.this) == JFileChooser.APPROVE_OPTION) file.setText(fc.getSelectedFile().getPath());
                 });
                 fp.add(file, BorderLayout.CENTER);
                 fp.add(pick, BorderLayout.EAST);
-                field("Файл бази", fp);
+                field(I18n.t("conn.file"), fp);
             }
             if (usesHost) {
-                field(k == DBKind.ATHENA ? "Регіон" : "Хост", text(c.host, hostPrompt(k), v -> { c.host = v; refreshButtons(); }));
+                field(k == DBKind.ATHENA ? I18n.t("conn.region") : I18n.t("conn.host"), text(c.host, hostPrompt(k), v -> { c.host = v; refreshButtons(); }));
                 JTextField port = text(String.valueOf(c.port), "", v -> { try { c.port = Integer.parseInt(v.trim()); } catch (NumberFormatException ignored) { } });
                 port.setColumns(6);
-                field("Порт", port);
+                field(I18n.t("conn.port"), port);
                 if (!k.alwaysTLS()) {
-                    JCheckBox tls = new JCheckBox(k == DBKind.MSSQL || k == DBKind.MARIADB ? "Шифроване зʼєднання (сертифікат сервера не перевіряється)"
-                            : "Шифроване зʼєднання (TLS)", c.useTLS);
+                    JCheckBox tls = new JCheckBox(k == DBKind.MSSQL || k == DBKind.MARIADB ? I18n.t("conn.tls.nocheck")
+                            : I18n.t("conn.tls"), c.useTLS);
                     tls.setOpaque(false);
                     tls.addActionListener(e -> { c.useTLS = tls.isSelected(); SwingUtilities.invokeLater(ConnectionsDialog.this::rebuildForm); });
                     field("", tls);
                 }
             }
             if (usesLogin) {
-                field(k == DBKind.DATABRICKS ? "Логін (token)" : "Логін", text(c.user, "", v -> c.user = v));
+                field(k == DBKind.DATABRICKS ? I18n.t("conn.user.token") : I18n.t("conn.user"), text(c.user, "", v -> c.user = v));
                 JPasswordField pw = new JPasswordField(passwords.getOrDefault(c.id, ""));
                 boolean stored = Passwords.get(c.id) != null;
-                pw.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, stored ? "збережено — введи, щоб змінити" : "");
+                pw.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, stored ? I18n.t("conn.pw.stored") : "");
                 JLabel warn = Ui.label("", Theme.ERROR, false, 11);
                 pw.getDocument().addDocumentListener(Sidebar.onChange(() -> {
                     String v = new String(pw.getPassword());
@@ -369,18 +370,18 @@ public final class ConnectionsDialog extends JDialog {
                     warn.setText(w == null ? "" : w);
                     warn.setIcon(w == null ? null : Ui.icon(Ui.Glyph.WARN, Theme.ERROR, 11));
                 }));
-                field(k == DBKind.DATABRICKS ? "Токен доступу" : "Пароль", pw);
+                field(k == DBKind.DATABRICKS ? I18n.t("conn.token") : I18n.t("conn.password"), pw);
                 field("", warn);
             }
             if (usesHost || k == DBKind.BIGQUERY) {
-                field(databaseLabel(k), text(c.database, k == DBKind.TRINO ? "напр., hive" : "", v -> c.database = v));
-                if (usesSchema) field("Схема", text(c.schema, "за замовчуванням", v -> c.schema = v));
+                field(databaseLabel(k), text(c.database, k == DBKind.TRINO ? I18n.t("conn.catalog.hint") : "", v -> c.database = v));
+                if (usesSchema) field(I18n.t("conn.schema"), text(c.schema, I18n.t("conn.schema.hint"), v -> c.schema = v));
             }
             jdbcRow(k);
             section();
             driverSection(k);
             section();
-            JCheckBox ro = new JCheckBox("Лише читання", c.readOnly);
+            JCheckBox ro = new JCheckBox(I18n.t("conn.readonly"), c.readOnly);
             ro.setOpaque(false);
             JTextArea roText = note(readOnlyText(c));
             ro.addActionListener(e -> { c.readOnly = ro.isSelected(); roText.setText(readOnlyText(c)); roText.setForeground(c.readOnly ? Theme.MUTED : Theme.ERROR); });
@@ -397,12 +398,12 @@ public final class ConnectionsDialog extends JDialog {
             if (k == DBKind.JDBC) {
                 JTextField url = text(c.jdbcURL == null ? "" : c.jdbcURL, "jdbc:…", v -> { c.jdbcURL = v; refreshButtons(); });
                 url.setFont(Theme.mono(12));
-                field("Адреса JDBC", url);
+                field(I18n.t("conn.jdbc"), url);
                 return;
             }
             JPanel p = new JPanel(new BorderLayout(8, 0));
             p.setOpaque(false);
-            JCheckBox manual = new JCheckBox("вручну", c.jdbcURL != null);
+            JCheckBox manual = new JCheckBox(I18n.t("conn.jdbc.manual"), c.jdbcURL != null);
             manual.setOpaque(false);
             if (c.jdbcURL != null) {
                 JTextField url = text(c.jdbcURL, "", v -> { c.jdbcURL = v; refreshButtons(); });
@@ -418,12 +419,12 @@ public final class ConnectionsDialog extends JDialog {
                 SwingUtilities.invokeLater(ConnectionsDialog.this::rebuildForm);
             });
             p.add(manual, BorderLayout.EAST);
-            p.setToolTipText("Складається з полів вище. «вручну» — щоб дописати свої параметри драйвера.");
-            field("Адреса JDBC", p);
+            p.setToolTipText(I18n.t("conn.jdbc.tip"));
+            field(I18n.t("conn.jdbc"), p);
         }
 
         void driverSection(DBKind k) {
-            heading("Драйвер");
+            heading(I18n.t("conn.driver"));
             if (k == DBKind.JDBC) {
                 JPanel jars = new JPanel();
                 jars.setLayout(new BoxLayout(jars, BoxLayout.Y_AXIS));
@@ -432,15 +433,15 @@ public final class ConnectionsDialog extends JDialog {
                     JPanel r = new JPanel(new BorderLayout(6, 0));
                     r.setOpaque(false);
                     r.add(Ui.label(Path.of(j).getFileName().toString(), Theme.TEXT, false, 12), BorderLayout.CENTER);
-                    JButton rm = Ui.iconButton(Ui.icon(Ui.Glyph.MINUS, Theme.MUTED), "Прибрати");
+                    JButton rm = Ui.iconButton(Ui.icon(Ui.Glyph.MINUS, Theme.MUTED), I18n.t("conn.driver.remove"));
                     rm.addActionListener(e -> { c.driverJars.remove(j); rebuildForm(); });
                     r.add(rm, BorderLayout.EAST);
                     jars.add(r);
                 }
-                JButton add = Ui.plainButton("Додати файл драйвера (.jar)…", Ui.icon(Ui.Glyph.PLUS, Theme.TEXT));
+                JButton add = Ui.plainButton(I18n.t("conn.driver.addjar"), Ui.icon(Ui.Glyph.PLUS, Theme.TEXT));
                 add.addActionListener(e -> {
                     JFileChooser fc = new JFileChooser();
-                    fc.setFileFilter(new FileNameExtensionFilter("Драйвер JDBC (.jar)", "jar"));
+                    fc.setFileFilter(new FileNameExtensionFilter(I18n.t("conn.driver.filter"), "jar"));
                     fc.setMultiSelectionEnabled(true);
                     if (fc.showOpenDialog(ConnectionsDialog.this) != JFileChooser.APPROVE_OPTION) return;
                     try {
@@ -455,16 +456,16 @@ public final class ConnectionsDialog extends JDialog {
                     rebuildForm();
                 });
                 jars.add(add);
-                field("Файли", jars);
-                field("", note("Файл копіюється в теку даних Ferret. Драйвер у ньому знаходиться сам — за адресою JDBC."));
+                field(I18n.t("conn.driver.files"), jars);
+                field("", note(I18n.t("conn.driver.jarnote")));
                 return;
             }
             Drivers.Spec spec = Drivers.spec(k);
-            field("Драйвер", Ui.label(k.title + " (" + spec.artifact() + ")", Theme.TEXT, false, 13));
+            field(I18n.t("conn.driver"), Ui.label(k.title + " (" + spec.artifact() + ")", Theme.TEXT, false, 13));
             JPanel ver = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
             ver.setOpaque(false);
             Drivers.Installed inst = Drivers.installed(k);
-            JLabel status = Ui.label(inst == null ? "не завантажено" : Drivers.display(k, inst.version()) + " · встановлено", Theme.TEXT, false, 13);
+            JLabel status = Ui.label(inst == null ? I18n.t("conn.driver.missing") : I18n.t("conn.driver.installed", Drivers.display(k, inst.version())), Theme.TEXT, false, 13);
             JComboBox<String> versions = new JComboBox<>();
             versions.setEnabled(false);
             JButton act = Ui.accentButton("…", null);
@@ -475,10 +476,9 @@ public final class ConnectionsDialog extends JDialog {
             ver.add(versions);
             ver.add(act);
             ver.add(size);
-            field("Версія", ver);
+            field(I18n.t("conn.driver.version"), ver);
             field("", err);
-            field("", note("Драйвер спільний для всіх підключень " + k.title + ". Завантажується з Maven Central і перевіряється контрольною сумою; "
-                    + "уперше — сам, під час першого зʼєднання."));
+            field("", note(I18n.t("conn.driver.note", k.title)));
             new Thread(() -> {
                 try {
                     List<String> vs = Drivers.versions(k, false);
@@ -486,7 +486,7 @@ public final class ConnectionsDialog extends JDialog {
                         versions.removeAllItems();
                         for (String v : vs.subList(0, Math.min(40, vs.size()))) versions.addItem(v);
                         versions.setRenderer((l, v, i, sel, f) -> {
-                            JLabel x = Ui.label(v == null ? "" : Drivers.display(k, v) + (i == 0 || (v != null && v.equals(vs.get(0))) ? "  · найновіша" : ""),
+                            JLabel x = Ui.label(v == null ? "" : i == 0 || v.equals(vs.get(0)) ? I18n.t("conn.driver.latest", Drivers.display(k, v)) : Drivers.display(k, v),
                                     sel ? Theme.ON_ACCENT : Theme.TEXT, false, 12);
                             x.setOpaque(true);
                             x.setBackground(sel ? Theme.ACCENT : Theme.RAISED);
@@ -502,7 +502,7 @@ public final class ConnectionsDialog extends JDialog {
                             if (chosen == null) { act.setVisible(false); return; }
                             boolean same = cur != null && cur.version().equals(chosen);
                             act.setVisible(!same);
-                            act.setText(cur == null ? "Завантажити " + Drivers.display(k, chosen) : "Встановити " + Drivers.display(k, chosen));
+                            act.setText(I18n.t(cur == null ? "conn.driver.download" : "conn.driver.install", Drivers.display(k, chosen)));
                         };
                         versions.addActionListener(e -> label.run());
                         label.run();
@@ -510,13 +510,13 @@ public final class ConnectionsDialog extends JDialog {
                             String v = (String) versions.getSelectedItem();
                             if (v == null) return;
                             act.setEnabled(false);
-                            act.setText("Завантажую…");
+                            act.setText(I18n.t("conn.driver.downloading"));
                             err.setText("");
                             new Thread(() -> {
                                 try {
                                     Drivers.install(k, v);
                                     SwingUtilities.invokeLater(() -> {
-                                        status.setText(Drivers.display(k, v) + " · встановлено");
+                                        status.setText(I18n.t("conn.driver.installed", Drivers.display(k, v)));
                                         act.setEnabled(true);
                                         label.run();
                                     });
@@ -527,28 +527,28 @@ public final class ConnectionsDialog extends JDialog {
                         });
                     });
                 } catch (Exception ex) {
-                    SwingUtilities.invokeLater(() -> err.setText("Перелік версій не отримано (немає звʼязку з Maven Central?): " + ex.getMessage()));
+                    SwingUtilities.invokeLater(() -> err.setText(I18n.t("conn.driver.versions.failed", ex.getMessage())));
                 }
             }, "ferret-versions").start();
         }
 
         String hostPrompt(DBKind k) {
             return switch (k) {
-                case TRINO -> "trino.example.com";
-                case SNOWFLAKE -> "акаунт.snowflakecomputing.com";
-                case ATHENA -> "eu-central-1 (регіон)";
-                case DATABRICKS -> "адреса робочого простору";
-                default -> "адреса сервера";
+                case TRINO -> I18n.t("conn.host.hint.trino");
+                case SNOWFLAKE -> I18n.t("conn.host.hint.snowflake");
+                case ATHENA -> I18n.t("conn.host.hint.athena");
+                case DATABRICKS -> I18n.t("conn.host.hint.databricks");
+                default -> I18n.t("conn.host.hint");
             };
         }
 
         String databaseLabel(DBKind k) {
             return switch (k) {
-                case TRINO, ATHENA -> "Каталог";
-                case ORACLE -> "Сервіс (service name)";
-                case BIGQUERY -> "Проєкт (ProjectId)";
-                case DATABRICKS -> "HTTP Path";
-                default -> "База даних";
+                case TRINO, ATHENA -> I18n.t("conn.db.catalog");
+                case ORACLE -> I18n.t("conn.db.service");
+                case BIGQUERY -> I18n.t("conn.db.project");
+                case DATABRICKS -> I18n.t("conn.db.httppath");
+                default -> I18n.t("conn.db");
             };
         }
 
@@ -612,10 +612,11 @@ public final class ConnectionsDialog extends JDialog {
     }
 
     static String readOnlyText(Connection c) {
-        if (!c.readOnly) return "Запобіжник вимкнено — будь-який запит піде на сервер як є.";
-        return "Перевіряється кожне слово запиту, не лише перше (INSERT, UPDATE, DELETE, DROP… не відправляються)"
-                + (Drivers.rollbackGuard(c.kind) ? ", а після запиту всі зміни відкочуються" : "")
-                + (c.kind == DBKind.MSSQL ? ": MS SQL сам читання не замикає й виконує кілька команд поспіль навіть без «;»." : ".");
+        if (!c.readOnly) return I18n.t("conn.ro.off");
+        // речення ціле в кожному варіанті: з відкатом змін чи без, з приміткою про MS SQL чи без
+        boolean rollback = Drivers.rollbackGuard(c.kind);
+        if (c.kind == DBKind.MSSQL) return I18n.t(rollback ? "conn.ro.on.rollback.mssql" : "conn.ro.on.mssql");
+        return I18n.t(rollback ? "conn.ro.on.rollback" : "conn.ro.on");
     }
 
     void refreshButtons() {
@@ -638,7 +639,7 @@ public final class ConnectionsDialog extends JDialog {
         left.add(testResult);
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         right.setOpaque(false);
-        JButton cancel = Ui.plainButton("Скасувати", null);
+        JButton cancel = Ui.plainButton(I18n.t("conn.cancel"), null);
         cancel.addActionListener(e -> dispose());
         applyBtn.addActionListener(e -> apply());
         doneBtn.addActionListener(e -> { apply(); dispose(); });
@@ -668,7 +669,7 @@ public final class ConnectionsDialog extends JDialog {
         String pw = typed.isEmpty() ? Passwords.get(c.id) : typed;
         boolean needsDriver = c.kind != DBKind.JDBC && Drivers.installed(c.kind) == null;
         testBtn.setEnabled(false);
-        testBtn.setText(needsDriver ? "Завантажую драйвер…" : "Перевіряю…");
+        testBtn.setText(needsDriver ? I18n.t("conn.test.driver") : I18n.t("conn.test.running"));
         testResult.setText("");
         testResult.setIcon(null);
         new Thread(() -> {
@@ -676,16 +677,16 @@ public final class ConnectionsDialog extends JDialog {
             String ok = null, err = null;
             try {
                 Drivers.jars(c);
-                SwingUtilities.invokeLater(() -> testBtn.setText("Перевіряю…"));
+                SwingUtilities.invokeLater(() -> testBtn.setText(I18n.t("conn.test.running")));
                 String product = Jdbc.test(c, pw == null ? "" : pw);
-                ok = "Зʼєднання є (" + (System.nanoTime() - t0) / 1_000_000 + " мс) · " + product;
+                ok = I18n.t("conn.test.ok", String.valueOf((System.nanoTime() - t0) / 1_000_000), product);
             } catch (Exception ex) {
                 err = ex.getMessage();
             }
             String fo = ok, fe = err;
             SwingUtilities.invokeLater(() -> {
                 testBtn.setEnabled(true);
-                testBtn.setText("Перевірити зʼєднання");
+                testBtn.setText(I18n.t("conn.test"));
                 Color col = fo != null ? new Color(0x7CC7A8) : Theme.ERROR;
                 testResult.setForeground(col);
                 testResult.setIcon(Ui.icon(fo != null ? Ui.Glyph.PLAY : Ui.Glyph.WARN, col, 12));

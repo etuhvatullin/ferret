@@ -1,6 +1,7 @@
 package ferret.ui;
 
 import ferret.App;
+import ferret.core.I18n;
 import ferret.core.Updater;
 
 import javax.swing.BorderFactory;
@@ -124,7 +125,7 @@ public final class Splash extends JFrame {
         mark.setAlignmentX(Component.LEFT_ALIGNMENT);
         r.add(mark);
         r.add(Box.createVerticalStrut(6));
-        r.add(left(Ui.label("версія " + App.version(), Theme.alpha(Theme.MUTED, 190), false, 11)));
+        r.add(left(Ui.label(I18n.t("splash.version", App.version()), Theme.alpha(Theme.MUTED, 190), false, 11)));
         r.add(Box.createVerticalGlue());
         state.setAlignmentX(Component.LEFT_ALIGNMENT);
         r.add(state);
@@ -135,7 +136,7 @@ public final class Splash extends JFrame {
 
     private void showChecking() {
         state.removeAll();
-        state.add(left(Ui.label("Перевіряю оновлення…", Theme.MUTED, false, 13)));
+        state.add(left(Ui.label(I18n.t("splash.checking"), Theme.MUTED, false, 13)));
         state.add(Box.createVerticalStrut(10));
         state.add(newBar(-1));
         refresh();
@@ -143,14 +144,14 @@ public final class Splash extends JFrame {
 
     private void showFound(Updater.Release r) {
         state.removeAll();
-        state.add(left(Ui.label("Є нова версія " + r.version(), Theme.TEXT, true, 15)));
+        state.add(left(Ui.label(I18n.t("splash.found", r.version()), Theme.TEXT, true, 15)));
         if (!r.notes().isBlank()) {
             state.add(Box.createVerticalStrut(6));
             state.add(left(notes(r.notes())));
         }
         state.add(Box.createVerticalStrut(14));
-        JButton later = Ui.plainButton("Пізніше", null);
-        JButton go = Ui.accentButton("Оновити", Ui.icon(Ui.Glyph.DOWNLOAD, Theme.ON_ACCENT, 12));
+        JButton later = Ui.plainButton(I18n.t("splash.later"), null);
+        JButton go = Ui.accentButton(I18n.t("splash.update"), Ui.icon(Ui.Glyph.DOWNLOAD, Theme.ON_ACCENT, 12));
         later.addActionListener(e -> finish(r));
         go.addActionListener(e -> download(r));
         state.add(left(buttons(later, go)));
@@ -166,22 +167,22 @@ public final class Splash extends JFrame {
             state.add(Box.createVerticalStrut(10));
             state.add(newBar(0));
             state.add(Box.createVerticalStrut(10));
-            state.add(left(Ui.label("Далі Ferret перезапуститься сам", Theme.MUTED, false, 12)));
+            state.add(left(Ui.label(I18n.t("splash.restartnote"), Theme.MUTED, false, 12)));
             refresh();
         }
-        ((JLabel) state.getComponent(0)).setText("Завантажую " + r.version() + " · " + Math.round(done * 100) + "%");
+        ((JLabel) state.getComponent(0)).setText(I18n.t("splash.downloading", r.version(), Math.round(done * 100)));
         bar.p = done;
         bar.repaint();
     }
 
     private void showError(Updater.Release r, String message) {
         state.removeAll();
-        state.add(left(Ui.label("Не вдалося оновити", Theme.ERROR, true, 15)));
+        state.add(left(Ui.label(I18n.t("splash.failed"), Theme.ERROR, true, 15)));
         state.add(Box.createVerticalStrut(6));
         state.add(left(notes(message)));
         state.add(Box.createVerticalStrut(14));
-        JButton later = Ui.plainButton("Пізніше", null);
-        JButton again = Ui.accentButton("Спробувати ще", null);
+        JButton later = Ui.plainButton(I18n.t("splash.later"), null);
+        JButton again = Ui.accentButton(I18n.t("splash.retry"), null);
         later.addActionListener(e -> finish(r));
         again.addActionListener(e -> download(r));
         state.add(left(buttons(later, again)));
@@ -215,7 +216,7 @@ public final class Splash extends JFrame {
             try {
                 Updater.install(r, done -> SwingUtilities.invokeLater(() -> showDownload(r, done)));
                 SwingUtilities.invokeLater(() -> {
-                    ((JLabel) state.getComponent(0)).setText("Перезапускаю…");
+                    ((JLabel) state.getComponent(0)).setText(I18n.t("splash.restarting"));
                     new Timer(150, e -> System.exit(0)).start();   // скрипт оновлення чекає, доки цей процес закриється
                 });
             } catch (Exception e) {

@@ -98,7 +98,7 @@ public final class Drivers {
     public static String size(DBKind k) {
         Spec s = spec(k);
         if (s == null) return "";
-        return (s.mb() < 10 ? String.format("%.1f", s.mb()).replace('.', ',') : String.valueOf(Math.round(s.mb()))) + " МБ";
+        return I18n.t("drivers.size.mb", s.mb() < 10 ? String.format(I18n.locale(), "%.1f", s.mb()) : String.valueOf(Math.round(s.mb())));
     }
 
     // MARK: адреса й властивості
@@ -261,13 +261,13 @@ public final class Drivers {
         try {
             HttpResponse<String> r = HTTP.send(HttpRequest.newBuilder(URI.create(REPO + s.group().replace('.', '/') + "/" + s.artifact() + "/maven-metadata.xml"))
                     .timeout(Duration.ofSeconds(30)).build(), HttpResponse.BodyHandlers.ofString());
-            if (r.statusCode() != 200) throw new DBError("Maven Central не віддав перелік версій драйвера " + s.artifact() + " (" + r.statusCode() + ").");
+            if (r.statusCode() != 200) throw new DBError(I18n.t("drivers.versions.status", s.artifact(), r.statusCode()));
             List<String> list = new ArrayList<>(stableVersions(r.body(), s));
             list.removeIf(v -> broken(k, v));
             known.put(k, list);
             return list;
         } catch (IOException | InterruptedException e) {
-            throw new DBError("Немає звʼязку з Maven Central: " + e.getMessage());
+            throw new DBError(I18n.t("drivers.offline", e.getMessage()));
         }
     }
 
@@ -276,21 +276,21 @@ public final class Drivers {
         if (c.kind == DBKind.JDBC) {
             List<Path> out = new ArrayList<>();
             for (String j : c.driverJars == null ? List.<String>of() : c.driverJars) out.add(Path.of(j));
-            if (out.isEmpty()) throw new DBError("Додай файл драйвера (.jar) у налаштуваннях підключення.");
+            if (out.isEmpty()) throw new DBError(I18n.t("drivers.jdbc.nojar"));
             return out;
         }
         Installed i = installed(c.kind);
         if (i != null && !broken(c.kind, i.version())) return i.jars();
         try {
             List<String> v = versions(c.kind, false);
-            if (v.isEmpty()) throw new DBError("На Maven Central немає стабільної версії драйвера для " + c.kind.title + ".");
+            if (v.isEmpty()) throw new DBError(I18n.t("drivers.nostable", c.kind.title));
             install(c.kind, v.get(0));
         } catch (DBError e) {
             if (i != null) return i.jars();   // немає мережі — краще версія з поломкою, ніж жодної
             throw e;
         }
         Installed now = installed(c.kind);
-        if (now == null) throw new DBError("Драйвер " + c.kind.title + " не встановився.");
+        if (now == null) throw new DBError(I18n.t("drivers.notinstalled", c.kind.title));
         return now.jars();
     }
 
@@ -321,7 +321,7 @@ public final class Drivers {
     // опубліковано), і лише тоді — заміна попередньої версії.
     static Path download(DBKind k, String v) throws Exception {
         Spec s = spec(k);
-        if (s == null) throw new DBError("Для «" + k.title + "» драйвер не завантажується.");
+        if (s == null) throw new DBError(I18n.t("drivers.nodownload", k.title));
         String base = REPO + s.group().replace('.', '/') + "/" + s.artifact() + "/" + v + "/";
         List<String> names = new ArrayList<>();
         names.add(s.artifact() + "-" + v + (s.classifier() == null ? "" : "-" + s.classifier()) + ".jar");
@@ -333,7 +333,7 @@ public final class Drivers {
                 HttpResponse<Path> r = HTTP.send(HttpRequest.newBuilder(URI.create(base + name)).timeout(Duration.ofMinutes(10)).build(),
                         HttpResponse.BodyHandlers.ofFile(part));
                 if (r.statusCode() == 404) continue;
-                if (r.statusCode() != 200) throw new DBError("Maven Central відповів " + r.statusCode() + " на " + name + ".");
+                if (r.statusCode() != 200) throw new DBError(I18n.t("drivers.status", r.statusCode(), name));
                 verify(part, base + name);
                 // потрібні драйверу бібліотеки — теж з перевіркою суми, у тимчасову теку поруч
                 Path staging = dir().resolve("." + k.raw + "-" + UUID.randomUUID());
@@ -345,7 +345,7 @@ public final class Drivers {
                         String eUrl = REPO + g[0].replace('.', '/') + "/" + g[1] + "/" + g[2] + "/" + eName;
                         HttpResponse<Path> er = HTTP.send(HttpRequest.newBuilder(URI.create(eUrl)).timeout(Duration.ofMinutes(5)).build(),
                                 HttpResponse.BodyHandlers.ofFile(staging.resolve(eName)));
-                        if (er.statusCode() != 200) throw new DBError("Maven Central відповів " + er.statusCode() + " на " + eName + ".");
+                        if (er.statusCode() != 200) throw new DBError(I18n.t("drivers.status", er.statusCode(), eName));
                         verify(staging.resolve(eName), eUrl);
                     }
                     Files.move(part, staging.resolve(name), StandardCopyOption.REPLACE_EXISTING);
@@ -364,7 +364,7 @@ public final class Drivers {
                 Files.deleteIfExists(part);
             }
         }
-        throw new DBError("На Maven Central немає файлу драйвера " + s.artifact() + " " + v + ".");
+        throw new DBError(I18n.t("drivers.nofile", s.artifact(), v));
     }
 
     static void verify(Path file, String url) throws Exception {
@@ -379,11 +379,11 @@ public final class Drivers {
             if (r.statusCode() != 200) continue;
             String expected = r.body().trim().split("\\s+")[0].toLowerCase();
             if (!expected.equals(hash(file, alg[1]))) {
-                throw new DBError("Файл драйвера не збігся з контрольною сумою (" + alg[0] + ") — завантаження відкинуто.");
+                throw new DBError(I18n.t("drivers.checksum.mismatch", alg[0]));
             }
             return;
         }
-        throw new DBError("Maven Central не віддав контрольної суми — драйвер не встановлено.");
+        throw new DBError(I18n.t("drivers.checksum.missing"));
     }
 
     public static String hash(Path file, String algorithm) throws Exception {

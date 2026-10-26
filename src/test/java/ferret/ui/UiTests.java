@@ -41,6 +41,7 @@ public final class UiTests {
         if (java.awt.GraphicsEnvironment.isHeadless()) { System.out.println("— перевірки вікна пропущено: немає екрана"); return; }
         Path dir = ferret.tests.T.temp("ferret-ui");
         Store.useDir(dir);
+        ferret.core.I18n.use("uk");   // компоненти шукаються за українськими текстами
         Connection t = Connection.blank(DBKind.TRINO);
         t.name = "Trino · тест";
         t.host = "trino.invalid";

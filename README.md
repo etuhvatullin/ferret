@@ -1,91 +1,90 @@
-# Ferret — SQL-консоль для Mac і Windows
+# Ferret — a SQL console for macOS and Windows
 
-Ferret — проста й швидка консоль для запитів до баз даних: Trino, ClickHouse, PostgreSQL, MS SQL, MySQL / MariaDB,
-Oracle, Snowflake, BigQuery та ще з десяток. Пишеш запит, натискаєш `Ctrl+Enter` (на Mac `⌘↵`) — бачиш таблицю.
-За замовчуванням підключення працюють **лише на читання**: запит, що змінює дані (INSERT, UPDATE, DELETE, DROP…),
-на сервер не піде.
+Ferret is a small, fast console for querying databases: Trino, ClickHouse, PostgreSQL, MS SQL, MySQL / MariaDB,
+Oracle, Snowflake, BigQuery and a dozen more through JDBC. Type a query, press `Ctrl+Enter` (`⌘↵` on a Mac) and get a
+table. Connections are **read-only by default**: a query that changes data (INSERT, UPDATE, DELETE, DROP…) is never
+sent to the server.
 
-Java ставити не треба — вона всередині програми. Інтерфейс — українською.
+No Java installation needed — it ships inside the app. Interface languages: English, Ukrainian, Russian, German and
+Spanish (follows your system language; switch any time in **Query → Language**).
 
-*English: Ferret is a lightweight SQL console for macOS and Windows (Trino, ClickHouse, PostgreSQL, MS SQL and more via
-JDBC). Read-only by default, auto-updates from GitHub Releases. The UI is in Ukrainian. MIT licensed.*
+## Install
 
-## Встановлення
+Download the latest version from [Releases](../../releases/latest).
 
-Завантаж найновішу версію зі сторінки [Releases](../../releases/latest).
+**Windows** — `Ferret-<version>-windows.zip`:
 
-**Windows** — `Ferret-<версія>-windows.zip`:
+1. Extract the archive (right-click → "Extract All").
+2. Double-click `Install Ferret.cmd`. No admin rights needed: Ferret goes to `%LOCALAPPDATA%\Programs\Ferret`, with
+   shortcuts in the Start menu and on the desktop.
+3. If Windows says "Windows protected your PC", click "More info" → "Run anyway". The app is not code-signed, so
+   SmartScreen doesn't know it yet.
 
-1. Розпакуй архів (правий клік → «Видобути все»).
-2. Двічі клацни `Встановити Ferret.cmd`. Права адміністратора не потрібні: програма ляже в
-   `%LOCALAPPDATA%\Programs\Ferret`, ярлики зʼявляться в «Пуск» і на робочому столі.
-3. Якщо Windows покаже «Windows захистив ваш ПК» — натисни «Докладніше» → «Усе одно запустити». Програма не підписана
-   сертифікатом, тому Windows її не знає.
+**macOS** — `Ferret-<version>-mac.dmg`:
 
-**Mac** — `Ferret-<версія>-mac.dmg`:
+1. Open the file and drag Ferret onto the "Applications" shortcut next to it.
+2. On first launch macOS says it can't verify the developer. Open System Settings → Privacy & Security, find Ferret
+   near the bottom and click "Open Anyway". You only need to do this once.
 
-1. Відкрий файл і перетягни Ferret на ярлик «Applications» поруч.
-2. Перший запуск: macOS скаже, що не може перевірити розробника. Відкрий «Системні параметри» → «Приватність і
-   безпека», знайди внизу рядок про Ferret і натисни «Все одно відкрити». Це треба лише один раз.
+Run Ferret from "Applications": started from the open `.dmg`, it can't update itself.
 
-Запускай Ferret саме з «Applications»: з відкритого `.dmg` програма не зможе оновитись.
+## First run
 
-## Перший запуск
+1. The Connections window opens. Click "+", pick a database, fill in host, user and password.
+2. Click "Test connection". On the first connection Ferret downloads the database driver from Maven Central and
+   verifies its checksum — it takes a few seconds.
+3. Click "Done". The table tree appears on the left; double-click a table to see its first 100 rows.
 
-1. Відкриється вікно «Підключення». Натисни «+», вибери базу, заповни хост, логін і пароль.
-2. «Перевірити зʼєднання». Під час першого зʼєднання Ferret сам завантажить драйвер бази (з Maven Central, з
-   перевіркою контрольної суми) — це кілька секунд.
-3. «Готово». Ліворуч зʼявиться дерево таблиць; подвійний клік по таблиці — перші 100 рядків.
+Passwords are stored only on your computer, in an encrypted file, and are never sent anywhere.
 
-Паролі зберігаються лише на твоєму компʼютері, у зашифрованому файлі, і нікуди не передаються.
+## Working with it
 
-## Як працювати
+- `Ctrl+Enter` runs the query under the cursor. Queries are separated by `;` or an empty line. Select text to run just
+  the selection. Inside a subquery Ferret asks whether to run the subquery or the whole query.
+- A query without `LIMIT` returns the first 500 rows; "Show all" fetches the rest (up to 200,000).
+- After `from` or `join` Ferret suggests tables: type the first letter, `Tab` inserts the suggestion, `Esc` opens the
+  list manually.
+- Results: click a column header to sort (again — reverse, a third time — original order); "Search in results" keeps
+  rows containing the text. Select cells → `Ctrl+C` pastes as a table into Excel / Google Sheets; "Copy all" and
+  "Save CSV…" take exactly what you see.
+- Every tab is a query with its own server. Closed tabs are kept under "Consoles" on the left.
 
-- `Ctrl+Enter` виконує запит, на якому стоїть курсор. Межа запиту — `;` або порожній рядок. Виділив текст — виконається
-  виділене. Курсор усередині підзапиту — Ferret спитає: лише підзапит чи весь запит.
-- Запит без `LIMIT` повертає перші 500 рядків. Потрібні всі — кнопка «Показати всі» (до 200 000).
-- Після `from` чи `join` Ferret підказує таблиці: набери першу літеру, `Tab` вставить підказку. `Esc` — підказка вручну.
-- Результат: клік по заголовку колонки сортує (ще раз — навпаки, утретє — як прийшло), «Пошук у результаті» лишає
-  рядки з потрібним текстом. Виділи клітинки → `Ctrl+C` — вставляються таблицею в Excel / Google Sheets; «Копіювати
-  все» і «Зберегти CSV…» беруть те, що видно.
-- Кожна вкладка — окремий запит зі своїм сервером. Закриті вкладки не зникають: вони в перемикачі «Консолі» ліворуч.
+## Keyboard shortcuts
 
-## Гарячі клавіші
-
-| Дія | Windows | Mac |
+| Action | Windows | macOS |
 |---|---|---|
-| Виконати запит | `Ctrl+Enter` | `⌘↵` |
-| Зупинити запит | `Ctrl+.` | `⌘.` |
-| Нова вкладка / закрити вкладку | `Ctrl+T` / `Ctrl+W` | `⌘T` / `⌘W` |
-| Повернути закриту вкладку | `Ctrl+Shift+T` | `⇧⌘T` |
-| Останні сервери 1…9 | `Ctrl+1` … `Ctrl+9` | `⌃1` … `⌃9` |
-| Підключення | `Ctrl+,` | `⌘,` |
-| Оновити дерево таблиць | `Ctrl+R` | `⌘R` |
-| Знайти в запиті (у таблиці — пошук у результаті) | `Ctrl+F`, далі `Ctrl+G` | `⌘F`, далі `⌘G` |
-| Відформатувати запит | `Ctrl+Alt+L` | `⌥⌘L` |
-| Закоментувати рядки | `Ctrl+/` | `⌘/` |
-| Відступ / назад | `Tab` / `Shift+Tab` (або `Ctrl+]` / `Ctrl+[`) | `Tab` / `⇧Tab` (або `⌘]` / `⌘[`) |
+| Run query | `Ctrl+Enter` | `⌘↵` |
+| Stop query | `Ctrl+.` | `⌘.` |
+| New tab / close tab | `Ctrl+T` / `Ctrl+W` | `⌘T` / `⌘W` |
+| Reopen closed tab | `Ctrl+Shift+T` | `⇧⌘T` |
+| Recent servers 1…9 | `Ctrl+1` … `Ctrl+9` | `⌃1` … `⌃9` |
+| Connections | `Ctrl+,` | `⌘,` |
+| Refresh table tree | `Ctrl+R` | `⌘R` |
+| Find in query (in results — search in results) | `Ctrl+F`, then `Ctrl+G` | `⌘F`, then `⌘G` |
+| Format query | `Ctrl+Alt+L` | `⌥⌘L` |
+| Comment lines | `Ctrl+/` | `⌘/` |
+| Indent / outdent | `Tab` / `Shift+Tab` (or `Ctrl+]` / `Ctrl+[`) | `Tab` / `⇧Tab` (or `⌘]` / `⌘[`) |
 
-## Оновлення
+## Updates
 
-Під час запуску Ferret перевіряє, чи є нова версія (не довше 3 секунд; без мережі просто відкривається). Якщо є —
-пропонує «Оновити» або «Пізніше». «Оновити» завантажує й перевіряє архів, і Ferret перезапускається вже новим.
-Перевірити вручну — меню «Запит» → «Перевірити оновлення». Підключення, паролі й вкладки при оновленні зберігаються.
+On launch Ferret checks for a new version (for at most 3 seconds; offline it simply opens). If there is one, it
+offers "Update" or "Later". "Update" downloads and verifies the archive, and Ferret restarts as the new version.
+Check manually via **Query → Check for updates**. Connections, passwords and tabs are kept.
 
-## Де лежать дані
+## Where your data lives
 
 - Windows: `%APPDATA%\Ferret\v2`
-- Mac: `~/Library/Application Support/Ferret/v2`
+- macOS: `~/Library/Application Support/Ferret/v2`
 
-Там підключення, вкладки, історія запитів, зашифровані паролі й журнал помилок `ferret.log` — його варто додати до
-повідомлення про помилку ([Issues](../../issues)).
+Connections, tabs, query history, encrypted passwords and the error log `ferret.log` — attach it when reporting a
+problem in [Issues](../../issues).
 
-## Збирання
+## Building
 
-Потрібна Java 21 (`javac`, `jar`). `./build.sh` — бібліотеки, компіляція, перевірки й `build/ferret.jar`;
-`./package.sh win | mac` — програма з вкладеною Java; `./release.sh "що нового"` — випуск на GitHub. Подробиці — у
-шапках скриптів і в `CLAUDE.md`. Сторонні компоненти й ліцензії — `THIRD-PARTY.md`.
+Java 21 (`javac`, `jar`) is required. `./build.sh` — libraries, compilation, tests and `build/ferret.jar`;
+`./package.sh win | mac` — the app with Java inside; `./release.sh "release notes"` — a GitHub release. Details are in
+the script headers and in `CLAUDE.md`. Third-party components and their licenses — `THIRD-PARTY.md`.
 
-## Ліцензія
+## License
 
-MIT — див. `LICENSE`.
+MIT — see `LICENSE`.

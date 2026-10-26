@@ -1,5 +1,6 @@
 package ferret.ui;
 
+import ferret.core.I18n;
 import ferret.core.Model.QueryResult;
 import ferret.core.Values;
 import ferret.ui.AppState.ConsoleTab;
@@ -41,7 +42,6 @@ import java.awt.datatransfer.StringSelection;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.text.NumberFormat;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -57,7 +57,7 @@ public final class ResultPanel extends JPanel {
     private final CardLayout cards = new CardLayout();
     private final JLabel summary = Ui.label("", Theme.MUTED, false, 12);
     private final JLabel truncated = Ui.label("", Theme.ACCENT, false, 12);
-    private final JButton showAll = Ui.plainButton("Показати всі", null);
+    private final JButton showAll = Ui.plainButton(I18n.t("result.showall"), null);
     private final Model model = new Model();
     private final JTable table = new JTable(model);
     private final JTextField filter = new JTextField();
@@ -93,17 +93,10 @@ public final class ResultPanel extends JPanel {
         refresh();
     }
 
-    // «з 21 рядка», «з 4 рядків» — після «з» родовий відмінок
-    static String rowsOf(int n) {
-        String num = NumberFormat.getIntegerInstance(Locale.forLanguageTag("uk-UA")).format(n);
-        return num + (n % 10 == 1 && n % 100 != 11 ? " рядка" : " рядків");
-    }
+    // «з 21 рядка», «з 4 рядків» — після «з» родовий відмінок (result.rowsof)
+    static String rowsOf(int n) { return I18n.plural("result.rowsof", n); }
 
-    public static String rowsLabel(int n) {
-        int tens = n % 100, ones = n % 10;
-        String w = tens >= 11 && tens <= 14 ? "рядків" : ones == 1 ? "рядок" : ones >= 2 && ones <= 4 ? "рядки" : "рядків";
-        return NumberFormat.getIntegerInstance(Locale.forLanguageTag("uk-UA")).format(n) + " " + w;
-    }
+    public static String rowsLabel(int n) { return I18n.plural("result.rows", n); }
 
     void refresh() {
         ConsoleTab t = state.current;
@@ -117,8 +110,8 @@ public final class ResultPanel extends JPanel {
         }
         ticker.stop();
         if (t.error != null) {
-            boolean stopped = t.error.equals("Зупинено.");
-            errorTitle.setText(stopped ? "Запит зупинено" : "Запит не виконано");
+            boolean stopped = t.error.equals(I18n.t("jdbc.stopped"));   // та сама позначка, що в Jdbc і AppState
+            errorTitle.setText(I18n.t(stopped ? "result.stopped" : "result.failed"));
             errorTitle.setForeground(stopped ? Theme.MUTED : Theme.ERROR);
             errorText.setText(stopped ? "" : t.error);
             errorText.setCaretPosition(0);
@@ -128,7 +121,7 @@ public final class ResultPanel extends JPanel {
         QueryResult r = t.result;
         if (r == null) { cards.show(this, "empty"); return; }
         if (r.columns.isEmpty()) {
-            messageText.setText(r.message == null ? "Виконано" : r.message);
+            messageText.setText(r.message == null ? I18n.t("result.done") : r.message);
             cards.show(this, "message");
             return;
         }
@@ -147,10 +140,10 @@ public final class ResultPanel extends JPanel {
             fitColumns(r);
         }
         updateSummary();
-        truncated.setText(r.truncated ? "показано перші " + rowsLabel(r.rows.size()) : "");
+        truncated.setText(r.truncated ? I18n.t("result.truncated", rowsLabel(r.rows.size())) : "");
         truncated.setVisible(r.truncated);   // інакше значок ⚠ лишався сам, без тексту
         showAll.setVisible(r.truncated && r.rows.size() < AppState.ALL_ROWS_LIMIT);
-        showAll.setToolTipText("Запустити той самий запит ще раз — без обрізання (до " + rowsLabel(AppState.ALL_ROWS_LIMIT) + ")");
+        showAll.setToolTipText(I18n.t("result.showall.tooltip", rowsLabel(AppState.ALL_ROWS_LIMIT)));
         cards.show(this, "grid");
     }
 
@@ -169,8 +162,8 @@ public final class ResultPanel extends JPanel {
     void updateSummary() {
         QueryResult r = model.r;
         String rows = needle.isEmpty() ? rowsLabel(r.rows.size())
-                : NumberFormat.getIntegerInstance(Locale.forLanguageTag("uk-UA")).format(table.getRowCount()) + " з " + rowsOf(r.rows.size());
-        summary.setText(rows + " · " + r.elapsedMs + " мс");
+                : I18n.t("result.filtered", I18n.num(table.getRowCount()), rowsOf(r.rows.size()));
+        summary.setText(rows + " · " + I18n.t("result.ms", String.valueOf(r.elapsedMs)));   // мс — без розрядів, як було
     }
 
     public void focusFilter() {
@@ -189,7 +182,7 @@ public final class ResultPanel extends JPanel {
         ConsoleTab t = shown;
         if (t == null || !t.running || t.startedAt == null) return;
         double s = Duration.between(t.startedAt, Instant.now()).toMillis() / 1000.0;
-        runningText.setText(String.format(Locale.US, "Шукаю… %.1f с", s));
+        runningText.setText(I18n.t("result.running", String.format(Locale.US, "%.1f", s)));
         bounce++;
         repaint();
     }
@@ -205,13 +198,13 @@ public final class ResultPanel extends JPanel {
         b.add(img);
         b.add(Box.createHorizontalStrut(24));
         Box txt = Box.createVerticalBox();
-        txt.add(Ui.label("Що шукаємо сьогодні?", Theme.TEXT, true, 20));
+        txt.add(Ui.label(I18n.t("result.empty.title"), Theme.TEXT, true, 20));
         txt.add(Box.createVerticalStrut(8));
-        txt.add(Ui.label("Напиши запит і натисни " + Theme.CMD + (Theme.MAC ? "↵" : "Enter") + " — виконається той, на якому курсор, або виділений текст.", Theme.MUTED, false, 13));
+        txt.add(Ui.label(I18n.t("result.empty.run", Theme.CMD + (Theme.MAC ? "↵" : "Enter")), Theme.MUTED, false, 13));
         txt.add(Box.createVerticalStrut(4));
-        txt.add(Ui.label("Подвійний клік по таблиці ліворуч — перші 100 рядків.", Theme.MUTED, false, 13));
+        txt.add(Ui.label(I18n.t("result.empty.preview"), Theme.MUTED, false, 13));
         txt.add(Box.createVerticalStrut(4));
-        txt.add(Ui.label("«from f» — і підкажу таблиці; Esc — імена з дерева.", Theme.MUTED, false, 13));
+        txt.add(Ui.label(I18n.t("result.empty.complete"), Theme.MUTED, false, 13));
         b.add(txt);
         p.add(b);
         return p;
@@ -246,7 +239,7 @@ public final class ResultPanel extends JPanel {
         img.setMaximumSize(size);
         img.setAlignmentX(Component.CENTER_ALIGNMENT);
         runningText.setAlignmentX(Component.CENTER_ALIGNMENT);
-        JLabel hint = Ui.label("«Зупинити» (" + Theme.CMD + ".) скасує запит і на сервері.", Theme.MUTED, false, 13);
+        JLabel hint = Ui.label(I18n.t("result.running.hint", Theme.CMD + "."), Theme.MUTED, false, 13);
         hint.setAlignmentX(Component.CENTER_ALIGNMENT);
         b.add(img);
         b.add(Box.createVerticalStrut(10));
@@ -273,7 +266,7 @@ public final class ResultPanel extends JPanel {
         JScrollPane sp = new JScrollPane(errorText);
         sp.setBorder(BorderFactory.createEmptyBorder());
         p.add(sp, BorderLayout.CENTER);
-        JButton copy = Ui.plainButton("Копіювати текст помилки", Ui.icon(Ui.Glyph.COPY, Theme.TEXT));
+        JButton copy = Ui.plainButton(I18n.t("result.copyerror"), Ui.icon(Ui.Glyph.COPY, Theme.TEXT));
         copy.addActionListener(e -> clip(errorText.getText()));
         JPanel south = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         south.setOpaque(false);
@@ -307,13 +300,13 @@ public final class ResultPanel extends JPanel {
         head.add(Ui.gap(8));
         head.add(showAll);
         head.add(Box.createHorizontalGlue());
-        JButton copyAll = Ui.plainButton("Копіювати все", Ui.icon(Ui.Glyph.COPY, Theme.TEXT));
-        copyAll.setToolTipText("Таблицею з заголовком — вставляється в Google Таблиці чи Excel клітинками. Те, що видно: з сортуванням і пошуком");
+        JButton copyAll = Ui.plainButton(I18n.t("result.copyall"), Ui.icon(Ui.Glyph.COPY, Theme.TEXT));
+        copyAll.setToolTipText(I18n.t("result.copyall.tooltip"));
         copyAll.addActionListener(e -> clip(tsv(model.r, viewRows())));
-        filter.putClientProperty(com.formdev.flatlaf.FlatClientProperties.PLACEHOLDER_TEXT, "Пошук у результаті");
+        filter.putClientProperty(com.formdev.flatlaf.FlatClientProperties.PLACEHOLDER_TEXT, I18n.t("result.filter"));
         filter.putClientProperty(com.formdev.flatlaf.FlatClientProperties.TEXT_FIELD_LEADING_ICON, Ui.icon(Ui.Glyph.SEARCH, Theme.MUTED));
         filter.putClientProperty(com.formdev.flatlaf.FlatClientProperties.TEXT_FIELD_SHOW_CLEAR_BUTTON, true);
-        filter.setToolTipText("Лишає рядки, де текст є в будь-якій колонці (без регістру). Esc — очистити");
+        filter.setToolTipText(I18n.t("result.filter.tooltip"));
         java.awt.Dimension fs = new java.awt.Dimension(240, filter.getPreferredSize().height);
         filter.setPreferredSize(fs);
         filter.setMaximumSize(fs);
@@ -323,7 +316,7 @@ public final class ResultPanel extends JPanel {
         EditorPanel.bind(filter, KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0), "clear-filter", () -> { filter.setText(""); table.requestFocusInWindow(); });
         head.add(filter);
         head.add(Ui.gap(8));
-        JButton csv = Ui.plainButton("Зберегти CSV…", Ui.icon(Ui.Glyph.DOWNLOAD, Theme.TEXT));
+        JButton csv = Ui.plainButton(I18n.t("result.savecsv"), Ui.icon(Ui.Glyph.DOWNLOAD, Theme.TEXT));
         csv.addActionListener(e -> saveCSV());
         showAll.addActionListener(e -> state.showAll(state.current));
         head.add(copyAll);
@@ -437,7 +430,7 @@ public final class ResultPanel extends JPanel {
     void saveCSV() {
         JFileChooser fc = new JFileChooser();
         fc.setFileFilter(new FileNameExtensionFilter("CSV", "csv"));
-        fc.setSelectedFile(new File((state.current == null ? "результат" : state.current.title) + ".csv"));
+        fc.setSelectedFile(new File((state.current == null ? I18n.t("result.csvname") : state.current.title) + ".csv"));
         if (fc.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
         File f = fc.getSelectedFile();
         if (!f.getName().toLowerCase().endsWith(".csv")) f = new File(f.getPath() + ".csv");
@@ -445,7 +438,7 @@ public final class ResultPanel extends JPanel {
             // BOM — щоб Excel відкрив кирилицю без «кракозябр»
             Files.write(f.toPath(), ("﻿" + csv(model.r, viewRows())).getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            javax.swing.JOptionPane.showMessageDialog(this, "Не вдалося зберегти: " + e.getMessage());
+            javax.swing.JOptionPane.showMessageDialog(this, I18n.t("result.savefailed", e.getMessage()));
         }
     }
 

@@ -1,78 +1,97 @@
-# Ferret — SQL-консоль для Mac і Windows (Java)
+# Ferret — a SQL console for macOS and Windows (Java)
 
-Swing + FlatLaf + RSyntaxTextArea, усі бази через JDBC, Java вкладена в програму (jpackage). Попередник — Swift-версія
-лише для macOS: її дані Ferret читає без перетворення (ті самі JSON у теці даних і `passwords.enc` — AES-GCM як у
-CryptoKit: nonce 12 ‖ шифр ‖ тег 16), тож формат будь-якого файла даних міняти лише сумісно. Локальні нотатки
-розробника (його машини, внутрішні адреси) — `CLAUDE.local.md`, у git його немає.
+Swing + FlatLaf + RSyntaxTextArea, every database through JDBC, Java bundled into the app (jpackage). Its predecessor
+is a macOS-only Swift app: Ferret reads that app's data as is (the same JSON files in the data folder and
+`passwords.enc` — AES-GCM like CryptoKit: nonce 12 ‖ ciphertext ‖ tag 16), so any data file format may only change in
+a backwards-compatible way. Local developer notes (machines, private endpoints) live in `CLAUDE.local.md`, which is not
+in git. Code comments are in Ukrainian.
 
-## Правила
+## Rules
 
-- Паролі — лише свій зашифрований файл (`core/Passwords`), ключ поруч. Системні сховища паролів не чіпати.
-- Драйвери баз не вкладаються: програма качає їх з Maven Central під час роботи й звіряє контрольну суму. Oracle /
-  MySQL — тим паче (ліцензія на користувача).
-- `update.json` (адреса оновлень; для закритого сховища — ще й ключ лише на читання) у git не потрапляє: його пише
-  `release.sh` перед пакуванням.
-- Поведінка — як у DataGrip, код — свій.
+- Passwords live only in Ferret's own encrypted file (`core/Passwords`), key next to it. Don't use OS keychains.
+- Database drivers are not bundled: the app downloads them from Maven Central at runtime and verifies checksums.
+  Never bundle Oracle / MySQL drivers (per-user licenses).
+- `update.json` (update URL; for a private channel also a read-only key) is never committed: `release.sh` writes it
+  before packaging.
+- Behaviour follows DataGrip; the code is our own.
+- **Every user-visible text goes through `I18n`** (see Languages below) — no string literals in the UI.
 
-## Команди
+## Commands
 
-Шапки скриптів — джерело правди; коротко:
+The script headers are the source of truth; in short:
 
-- `./build.sh` — бібліотеки (sha1), компіляція, перевірки без екрана (`ferret.tests.All`), `build/ferret.jar`.
-  `./build.sh fast` — без перевірок (і стирає `build/test-classes`). `./build.sh ui` — плюс `ferret.ui.UiTests`.
-- `./package.sh win | mac` → `dist/`. `./release.sh "що нового"` — випуск на GitHub Releases.
-- Живі бази в перевірках — `FERRET_TRINO_URL`, `FERRET_CH_URL`, `FERRET_PG_URL` (`trino://логін:пароль@хост:порт/каталог`);
-  ClickHouse / Postgres піднімати тимчасовим Docker-контейнером і прибирати після.
+- `./build.sh` — libraries (sha1-checked), compile, headless tests (`ferret.tests.All`), `build/ferret.jar`.
+  `./build.sh fast` — no tests (and wipes `build/test-classes`). `./build.sh ui` — plus `ferret.ui.UiTests`.
+- `./package.sh win | mac` → `dist/`. `./release.sh "notes"` — a GitHub release.
+- Live databases in tests — `FERRET_TRINO_URL`, `FERRET_CH_URL`, `FERRET_PG_URL` (`trino://user:pass@host:port/catalog`);
+  run ClickHouse / Postgres in a throwaway Docker container and remove it afterwards.
 
-## Будова
+## Layout
 
-`core/` — без Swing: моделі й формат файлів (`Model`, `Json`, `Store`), паролі, драйвери (`Drivers` — завантаження,
-`Jdbc` — запит, дерево, «лише читання», людський текст мережевих збоїв), текст SQL (`SqlText`, `Format`, `Dialect`),
-значення результату (`Values`), `Updater`. `ui/` — Swing: `AppState` (стан і події `emit`), `MainWindow`,
+`core/` — no Swing: models and file formats (`Model`, `Json`, `Store`), passwords, drivers (`Drivers` — download,
+`Jdbc` — queries, tree, read-only guard, human-readable network errors), SQL text (`SqlText`, `Format`, `Dialect`),
+result values (`Values`), `I18n`, `Updater`. `ui/` — Swing: `AppState` (state and `emit` events), `MainWindow`,
 `EditorPanel`, `ResultPanel`, `Sidebar`, `TabBar`, `ConnectionsDialog`, `SuggestionPopup`, `Splash`, `UpdateBanner`,
-`Theme` / `Ui` (кольори «Нори», намальовані значки — емодзі як іконку не ставити). Нова логіка без вікна — у `core/` з
-перевіркою в `src/test/java/ferret/tests/`.
+`Theme` / `Ui` ("Nora" colours, drawn icons — never emoji as icons). New non-UI logic goes to `core/` with a test in
+`src/test/java/ferret/tests/`.
 
-## Перевірка вікна
+## Languages
 
-Поведінку клавіатури доводить лише `./build.sh ui`: справжні натискання й клацання через `Robot` (у WSL — WSLg,
-`DISPLAY=:0`: окремий X-сервер, натискання не потрапляють у програми Windows). Події, подані прямо в редактор
-(`dispatchEvent`), минають меню й фокус, тож конфліктів клавіш не бачать. Новий гарячий шлях — перевірка натисканням.
-`Robot` на робочому столі Windows не запускати: вікно без фокусу — і `Ctrl+W` закриє вкладку в чужій програмі.
+English (default), Ukrainian, Russian, German, Spanish — `src/main/resources/ferret/i18n/messages*.properties`
+(UTF-8; `messages.properties` is English). First launch follows the system language if it is one of the five,
+otherwise English; the choice is `settings.json` → `language` (menu **Query → Language**, then a restart).
 
-Знімок вікна: `FERRET_SNAPSHOT=шлях.png` (+ `FERRET_DATA_DIR` на тимчасову теку); `FERRET_SNAPSHOT_PAINT=1` — програма
-малює себе сама й відкривається поза екраном (на Mac `Robot` без дозволу «Запис екрана» мовчки дає чорне; модальні
-вікна в `paint` головного вікна не потрапляють). Перед знімком на Windows глянь, що на передньому плані: у
-повноекранній грі `Robot` знімає гру, а вікна WSLg не отримують фокус.
+- `I18n.t("area.name", args…)` — MessageFormat only when args are given; then a literal apostrophe is `''`.
+- Plurals — `I18n.plural("key", n)`: `key.one / key.few / key.many` in Ukrainian and Russian, `key.one / key.other`
+  elsewhere. Numbers — `I18n.num(n)`.
+- A new text needs a key in **all five** files with the same `{0}…`: `I18nTests` fails otherwise.
+- The test suite runs in Ukrainian (`I18n.use("uk")`) because many assertions and UI-test lookups use Ukrainian texts.
+- SQL function descriptions: `fn.<name>` or `fn.<dialect>.<name>`, resolved lazily.
 
-## Пастки (заміряно)
+## Testing the window
 
-- **Список підказок — шар `JLayeredPane` у головному вікні, не `JWindow`.** Поки окреме вікно зʼявлялось чи ховалось,
-  Linux губив натискання: «l, Tab, .sa» давало `lake` або `   .sa`, а `Ctrl+T` одразу після Esc зникав.
-- **RSyntaxTextArea забирає `⌘[`** під «парну дужку» — тому `⌘[` / `⌘]` привʼязано в самому редакторі.
-- **Під FlatLaf редактор вписує символ із затиснутим ⌘ / Ctrl** (`⌘/` ставив коментар і ще «/»; `Ctrl+1…9` — цифру).
-  `keyTyped` у `EditorPanel` гасить такі символи, крім Ctrl+Alt (AltGr на Windows).
-- **jpackage** збирає лише під свою систему; перше число версії на Mac ≥ 1; Mac — `codesign -s -` (без підпису
-  розробника перший запуск — через «Все одно відкрити»).
-- **Trino:** перелік таблиць усього каталогу повільний і падає на схемі `system` → `Jdbc.tables` іде по схемах паралельно.
-- **ClickHouse JDBC:** без `slf4j-api` падає (`Drivers.Spec.extras`). 0.11.0 не читає `Array(Nullable(UInt64))` —
-  вона в `Drivers.BROKEN` (не пропонується, встановлена замінюється з першим зʼєднанням); 0.10.0 зі своїм LZ4 не
-  розуміє сервер 26.x → `client.use_http_compression=true`. Живу перевірку ганяти проти свіжого сервера (таблиця з масивом).
-- **`.cmd` — лише з переносами Windows (CRLF, `.gitattributes`)**, `chcp 65001` першим рядком: інакше cmd губив рядки
-  (порожній шлях встановлення) і ламав кириличні шляхи. Перед `robocopy /MIR` — запобіжник від порожнього шляху.
-- **`start` з `.cmd` відкриває `cmd /k`** — вікно лишалось після оновлення. Запуск — `start "" /min cmd /c …` з текою
-  запуску поза текою програми; службова тека прибирає себе (`(goto) 2>nul & rd /s /q …`), залишки — `Updater.cleanupOld()`.
-  Перевіряти оновлення без мережі: копія з `update.json` на `http://127.0.0.1:8765/latest.json` і `Updater.install` з
-  `-Djpackage.app-path`.
-- Програма jpackage на Windows — два процеси `Ferret.exe` (запускач і Java); це нормально.
-- **Меню на Windows — вбудоване меню FlatLaf (`setJMenuBar`), знак — «клей» у ньому (`titleMark`).** З
-  `FULL_WINDOW_CONTENT` меню ставало окремим рядом, а перенесене в смугу клікалось через раз (FlatLaf приймав клік за
-  перетягування вікна). На Mac — меню екрана і `FULL_WINDOW_CONTENT`; `⌘Q` іде через `quit()` (QuitHandler).
-- **Мітка з `setPreferredSize` у `BoxLayout` — 0×0, якщо в ній немає тексту** (BoxLayout бере ще мін./макс. розмір) —
-  ставити всі три розміри.
-- **Підписи клавіш у меню Windows/Linux — англійськими назвами** («Ctrl+Period») → `FerretMenuItemUI`.
-- **Пошук у редакторі:** колір збігів — `setMarkAllHighlightColor`, при закритті панелі — `clearMarkAllHighlights()`.
-- **Сортування й пошук у результаті** — `TableRowSorter` + `RowFilter`, компаратор за типом колонки (`core/Values`).
-  Після `model.set` компаратори ставити заново. Копіювання/CSV — у порядку видимого (`convertRowIndexToModel`).
-- Виняток у `main` перевірки не завершує процес (потік вікна живий) → `System.exit` у `catch`.
-- У WSL `pkill -f <рядок>` вбиває й власну оболонку, якщо рядок є в команді, — шукати `pgrep -x java` і `/proc/<pid>/cmdline`.
+Only `./build.sh ui` proves keyboard behaviour: real key presses and clicks via `Robot` (in WSL — WSLg, `DISPLAY=:0`,
+a separate X server, so keys never reach Windows apps). Events dispatched straight into the editor bypass menus and
+focus and can't see shortcut conflicts — test every new shortcut with a real key press. Never run `Robot` on a
+Windows desktop: if the window lacks focus, `Ctrl+W` closes a tab in someone else's app.
+
+Snapshot: `FERRET_SNAPSHOT=file.png` (+ `FERRET_DATA_DIR` pointing at a temp folder); `FERRET_SNAPSHOT_PAINT=1` makes
+the app paint itself and open off-screen (on macOS `Robot` without the Screen Recording permission silently returns
+black; modal dialogs aren't part of the main window's `paint`). Before a Windows snapshot check what is in the
+foreground: in a full-screen game `Robot` captures the game and WSLg windows get no focus.
+
+## Pitfalls (measured)
+
+- **The suggestion list is a `JLayeredPane` layer of the main window, not a `JWindow`.** While a separate window
+  appeared/disappeared Linux dropped key presses ("l, Tab, .sa" became `lake` or `   .sa`; `Ctrl+T` after Esc vanished).
+- **RSyntaxTextArea takes `⌘[`** for "matching bracket" — so `⌘[` / `⌘]` are bound in the editor itself.
+- **Under FlatLaf the editor types the character of a ⌘ / Ctrl shortcut** (`⌘/` commented and also typed "/";
+  `Ctrl+1…9` typed a digit). `keyTyped` in `EditorPanel` swallows those, except Ctrl+Alt (AltGr on Windows).
+- **jpackage** builds only for its own OS; on macOS the first version number must be ≥ 1; macOS — `codesign -s -`
+  (no developer ID: first launch needs "Open Anyway").
+- **Trino:** listing a whole catalog is slow and fails on the `system` schema → `Jdbc.tables` goes schema by schema in
+  parallel.
+- **ClickHouse JDBC:** fails without `slf4j-api` (`Drivers.Spec.extras`). 0.11.0 can't read `Array(Nullable(UInt64))`
+  — it is in `Drivers.BROKEN` (never offered; an installed one is replaced on the next connection); 0.10.0's own LZ4
+  can't read 26.x servers → `client.use_http_compression=true`. Run the live test against a fresh server (its table
+  has an array column).
+- **`.cmd` files must have Windows line endings (CRLF, `.gitattributes`)** and `chcp 65001` first: otherwise cmd drops
+  lines (empty install path) and breaks non-ASCII paths. Guard `robocopy /MIR` against an empty target.
+- **`start` with a `.cmd` opens `cmd /k`** — a window stayed after updating. Launch with `start "" /min cmd /c …` from a
+  folder outside the app; the work folder removes itself (`(goto) 2>nul & rd /s /q …`), leftovers — `Updater.cleanupOld()`.
+  Test updates offline: a copy whose `update.json` points to `http://127.0.0.1:8765/latest.json`, then
+  `Updater.install` with `-Djpackage.app-path`.
+- A jpackage app on Windows is two `Ferret.exe` processes (launcher and Java); that's normal.
+- **Windows menu — FlatLaf's embedded menu bar (`setJMenuBar`), the wordmark is a "glue" inside it (`titleMark`).**
+  With `FULL_WINDOW_CONTENT` the menu became a separate row, and moved into a title strip it only worked every other
+  click (FlatLaf took the click for a window drag). macOS — screen menu bar and `FULL_WINDOW_CONTENT`; `⌘Q` goes
+  through `quit()` (QuitHandler).
+- **A label with only `setPreferredSize` in a `BoxLayout` is 0×0 when it has no text** (BoxLayout also uses min/max) —
+  set all three sizes.
+- **Menu shortcut labels on Windows/Linux use English key names** ("Ctrl+Period") → `FerretMenuItemUI`.
+- **Find in editor:** match colour — `setMarkAllHighlightColor`; on closing the panel — `clearMarkAllHighlights()`.
+- **Sorting and search in results** — `TableRowSorter` + `RowFilter`, comparator by column type (`core/Values`).
+  Re-apply comparators after `model.set`. Copy/CSV follow the visible order (`convertRowIndexToModel`).
+- An exception in a test's `main` doesn't end the process (the UI thread is alive) → `System.exit` in `catch`.
+- In WSL `pkill -f <text>` also kills your own shell if the text is in the command — use `pgrep -x java` and
+  `/proc/<pid>/cmdline`.

@@ -54,10 +54,10 @@ public final class Updater {
         if (c == null) return null;
         try {
             HttpResponse<String> r = HTTP.send(request(c, c.url()).GET().build(), HttpResponse.BodyHandlers.ofString());
-            if (r.statusCode() != 200) throw new Model.DBError("Сервер оновлень відповів " + r.statusCode() + ".");
+            if (r.statusCode() != 200) throw new Model.DBError(I18n.t("updater.status", r.statusCode()));
             return pick(Json.map(Json.parse(r.body())), current, Store.MAC ? "mac" : Store.WINDOWS ? "windows" : "linux");
         } catch (IOException | InterruptedException e) {
-            throw new Model.DBError("Немає звʼязку із сервером оновлень: " + e.getMessage());
+            throw new Model.DBError(I18n.t("updater.offline", e.getMessage()));
         }
     }
 
@@ -88,12 +88,12 @@ public final class Updater {
     public static void install(Release r, java.util.function.DoubleConsumer progress) throws Exception {
         Config c = config();
         Path dir = installDir();
-        if (c == null || dir == null) throw new Model.DBError("Оновлення працює лише в установленій програмі.");
-        if (!Files.isWritable(dir.getParent())) throw new Model.DBError("Немає прав на запис у " + dir.getParent() + " — встанови нову версію вручну.");
+        if (c == null || dir == null) throw new Model.DBError(I18n.t("updater.notinstalled"));
+        if (!Files.isWritable(dir.getParent())) throw new Model.DBError(I18n.t("updater.noaccess", dir.getParent()));
         Path work = Files.createTempDirectory("ferret-update");
         Path zip = work.resolve("ferret.zip");
         HttpResponse<InputStream> resp = HTTP.send(request(c, r.url()).GET().build(), HttpResponse.BodyHandlers.ofInputStream());
-        if (resp.statusCode() != 200) { resp.body().close(); throw new Model.DBError("Сервер оновлень відповів " + resp.statusCode() + " на архів."); }
+        if (resp.statusCode() != 200) { resp.body().close(); throw new Model.DBError(I18n.t("updater.status.archive", resp.statusCode())); }
         long total = resp.headers().firstValueAsLong("Content-Length").orElse(-1);
         try (InputStream in = resp.body(); var out = Files.newOutputStream(zip)) {
             byte[] buf = new byte[1 << 16];
@@ -104,13 +104,13 @@ public final class Updater {
                 if (total > 0) progress.accept(Math.min(1.0, got / (double) total));
             }
         }
-        if (!Drivers.hash(zip, "SHA-256").equals(r.sha256())) throw new Model.DBError("Архів оновлення не збігся з контрольною сумою — не встановлено.");
+        if (!Drivers.hash(zip, "SHA-256").equals(r.sha256())) throw new Model.DBError(I18n.t("updater.checksum"));
         Path unpacked = work.resolve("new");
         if (Store.MAC) {
             // ditto зберігає права, посилання й підпис .app — розпакування засобами Java їх губить
             Files.createDirectories(unpacked);
             Process p = new ProcessBuilder("ditto", "-x", "-k", zip.toString(), unpacked.toString()).inheritIO().start();
-            if (p.waitFor() != 0) throw new Model.DBError("Не вдалося розпакувати оновлення.");
+            if (p.waitFor() != 0) throw new Model.DBError(I18n.t("updater.unpack"));
         } else {
             unzip(zip, unpacked);
         }
@@ -166,7 +166,7 @@ public final class Updater {
             ZipEntry e;
             while ((e = z.getNextEntry()) != null) {
                 Path out = to.resolve(e.getName()).normalize();
-                if (!out.startsWith(to)) throw new IOException("Недозволений шлях в архіві: " + e.getName());   // захист від ../
+                if (!out.startsWith(to)) throw new IOException(I18n.t("updater.badpath", e.getName()));   // захист від ../
                 if (e.isDirectory()) { Files.createDirectories(out); continue; }
                 Files.createDirectories(out.getParent());
                 Files.copy(z, out, StandardCopyOption.REPLACE_EXISTING);

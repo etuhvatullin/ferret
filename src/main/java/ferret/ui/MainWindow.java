@@ -2,6 +2,7 @@ package ferret.ui;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import ferret.App;
+import ferret.core.I18n;
 import ferret.core.Model.Connection;
 import ferret.core.Model.DBKind;
 import ferret.ui.AppState.ConsoleTab;
@@ -10,6 +11,7 @@ import ferret.ui.AppState.HistoryItem;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
@@ -17,8 +19,10 @@ import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JRootPane;
 import javax.swing.JSplitPane;
 import javax.swing.KeyStroke;
@@ -50,8 +54,8 @@ public final class MainWindow extends JFrame {
     private final JLabel bandName = Ui.label("", Theme.TEXT, true, 12);
     private final JLabel bandHost = Ui.label("", Theme.MUTED, false, 12);
     private final JLabel bandLock = Ui.label("", Theme.MUTED, false, 11);
-    private final JButton runBtn = Ui.accentButton("Виконати", Ui.icon(Ui.Glyph.PLAY, Theme.ON_ACCENT, 12));
-    private final JButton stopBtn = Ui.plainButton("Зупинити", Ui.icon(Ui.Glyph.STOP, Theme.TEXT, 12));
+    private final JButton runBtn = Ui.accentButton(I18n.t("main.run"), Ui.icon(Ui.Glyph.PLAY, Theme.ON_ACCENT, 12));
+    private final JButton stopBtn = Ui.plainButton(I18n.t("main.stop"), Ui.icon(Ui.Glyph.STOP, Theme.TEXT, 12));
     public final UpdateBanner update;
 
     public static MainWindow open() {
@@ -148,12 +152,17 @@ public final class MainWindow extends JFrame {
     }
 
     public void quit() {
+        saveState();
+        dispose();
+        System.exit(0);
+    }
+
+    // Вкладки, розмір вікна й налаштування — на диск (вихід і перезапуск після зміни мови)
+    void saveState() {
         state.saveTabs();
         state.settings.put("windowWidth", (long) getWidth());
         state.settings.put("windowHeight", (long) getHeight());
         state.saveSettings();
-        dispose();
-        System.exit(0);
     }
 
     // MARK: заголовок, панель запуску, смуга сервера
@@ -211,9 +220,9 @@ public final class MainWindow extends JFrame {
         r.add(Ui.gap(10));
         r.add(stopBtn);
         r.add(Box.createHorizontalGlue());
-        r.add(Ui.label("Esc — підказка імен", Theme.MUTED, false, 11));
+        r.add(Ui.label(I18n.t("main.eschint"), Theme.MUTED, false, 11));
         r.add(Ui.gap(10));
-        JButton hist = Ui.plainButton("Історія", Ui.icon(Ui.Glyph.HISTORY, Theme.TEXT));
+        JButton hist = Ui.plainButton(I18n.t("main.history"), Ui.icon(Ui.Glyph.HISTORY, Theme.TEXT));
         hist.addActionListener(e -> historyMenu().show(hist, hist.getWidth() - 520, hist.getHeight()));
         r.add(hist);
         r.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
@@ -234,15 +243,15 @@ public final class MainWindow extends JFrame {
         for (HistoryItem h : state.history) {
             if (c == null || !h.connection().equals(c.id)) continue;
             String first = Sidebar.firstLine(h.sql());
-            String info = h.error() != null ? "помилка" : h.rows() == null ? "" : ResultPanel.rowsLabel(h.rows());
+            String info = h.error() != null ? I18n.t("main.history.error") : h.rows() == null ? "" : ResultPanel.rowsLabel(h.rows());
             JMenuItem i = new JMenuItem("<html><b>" + esc(first.length() > 70 ? first.substring(0, 70) + "…" : first) + "</b>&nbsp;&nbsp;<font color='#B3A390'>"
                     + esc(info + " · " + Sidebar.ago(h.date())) + "</font></html>");
-            i.setToolTipText("Вставити в запит");
+            i.setToolTipText(I18n.t("main.history.insert"));
             i.addActionListener(e -> editor.insertText(h.sql()));
             m.add(i);
             if (++n >= 30) break;
         }
-        if (n == 0) m.add(new JMenuItem("Історія цього сервера порожня")).setEnabled(false);
+        if (n == 0) m.add(new JMenuItem(I18n.t("main.history.empty"))).setEnabled(false);
         return m;
     }
 
@@ -269,7 +278,7 @@ public final class MainWindow extends JFrame {
         b.add(Ui.gap(8));
         b.add(bandHost);
         b.add(Ui.gap(6));
-        JButton move = Ui.iconButton(Ui.icon(Ui.Glyph.SWAP, Theme.MUTED, 12), "Перенести цю вкладку на інший сервер");
+        JButton move = Ui.iconButton(Ui.icon(Ui.Glyph.SWAP, Theme.MUTED, 12), I18n.t("main.move"));
         move.addActionListener(e -> moveMenu().show(move, 0, move.getHeight()));
         b.add(move);
         b.add(Box.createHorizontalGlue());
@@ -280,11 +289,11 @@ public final class MainWindow extends JFrame {
 
     void refreshBand() {
         Connection c = state.connection(state.current);
-        bandName.setText(c == null ? "без підключення" : c.name);
+        bandName.setText(c == null ? I18n.t("main.band.none") : c.name);
         bandHost.setText(c == null ? "" : (c.host.isEmpty() ? c.kind.title : c.host) + (c.database.isEmpty() ? "" : " · " + c.database));
         if (c == null) { bandLock.setText(""); bandLock.setIcon(null); }
-        else if (c.readOnly) { bandLock.setText("лише читання"); bandLock.setIcon(Ui.icon(Ui.Glyph.LOCK, Theme.MUTED, 11)); bandLock.setForeground(Theme.MUTED); }
-        else { bandLock.setText("запис дозволено"); bandLock.setIcon(Ui.icon(Ui.Glyph.WARN, Theme.ERROR, 11)); bandLock.setForeground(Theme.ERROR); }
+        else if (c.readOnly) { bandLock.setText(I18n.t("main.band.readonly")); bandLock.setIcon(Ui.icon(Ui.Glyph.LOCK, Theme.MUTED, 11)); bandLock.setForeground(Theme.MUTED); }
+        else { bandLock.setText(I18n.t("main.band.writable")); bandLock.setIcon(Ui.icon(Ui.Glyph.WARN, Theme.ERROR, 11)); bandLock.setForeground(Theme.ERROR); }
         repaint();
     }
 
@@ -303,45 +312,70 @@ public final class MainWindow extends JFrame {
     JMenuBar menus() {
         JMenuBar bar = new JMenuBar();
         int M = Theme.MENU_MASK;
-        JMenu q = new JMenu("Запит");
-        q.add(item("Виконати", KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, M), e -> editor.requestRun()));
-        q.add(item("Зупинити", KeyStroke.getKeyStroke(KeyEvent.VK_PERIOD, M), e -> state.stop(state.current)));
+        JMenu q = new JMenu(I18n.t("main.menu.query"));
+        q.add(item(I18n.t("main.run"), KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, M), e -> editor.requestRun()));
+        q.add(item(I18n.t("main.stop"), KeyStroke.getKeyStroke(KeyEvent.VK_PERIOD, M), e -> state.stop(state.current)));
         q.addSeparator();
-        q.add(item("Нова вкладка", KeyStroke.getKeyStroke(KeyEvent.VK_T, M), e -> state.newTab("", null, state.currentConnectionID)));
-        q.add(item("Відкрити останню закриту консоль", KeyStroke.getKeyStroke(KeyEvent.VK_T, M | InputEvent.SHIFT_DOWN_MASK), e -> state.reopenTab()));
-        q.add(item("Закрити вкладку", KeyStroke.getKeyStroke(KeyEvent.VK_W, M), e -> state.closeTab(state.current)));
-        q.add(item("Оновити схему", KeyStroke.getKeyStroke(KeyEvent.VK_R, M), e -> state.refreshSchema()));
+        q.add(item(I18n.t("main.menu.newtab"), KeyStroke.getKeyStroke(KeyEvent.VK_T, M), e -> state.newTab("", null, state.currentConnectionID)));
+        q.add(item(I18n.t("main.menu.reopen"), KeyStroke.getKeyStroke(KeyEvent.VK_T, M | InputEvent.SHIFT_DOWN_MASK), e -> state.reopenTab()));
+        q.add(item(I18n.t("main.menu.closetab"), KeyStroke.getKeyStroke(KeyEvent.VK_W, M), e -> state.closeTab(state.current)));
+        q.add(item(I18n.t("main.menu.refreshschema"), KeyStroke.getKeyStroke(KeyEvent.VK_R, M), e -> state.refreshSchema()));
         q.addSeparator();
         for (int i = 0; i < 9; i++) {
             int n = i;
-            q.add(item("Останній сервер " + (i + 1), KeyStroke.getKeyStroke(KeyEvent.VK_1 + i, InputEvent.CTRL_DOWN_MASK), e -> {
+            q.add(item(I18n.t("main.menu.recentserver", i + 1), KeyStroke.getKeyStroke(KeyEvent.VK_1 + i, InputEvent.CTRL_DOWN_MASK), e -> {
                 List<Connection> r = state.recentConnections();
                 if (n < r.size()) state.goToServer(r.get(n).id);
             }));
         }
         q.addSeparator();
-        q.add(item("Підключення…", KeyStroke.getKeyStroke(KeyEvent.VK_COMMA, M), e -> openConnections(state.currentConnectionID, null)));
-        q.add(item("Нове підключення…", null, e -> openConnections(null, DBKind.TRINO)));
+        q.add(item(I18n.t("main.menu.connections"), KeyStroke.getKeyStroke(KeyEvent.VK_COMMA, M), e -> openConnections(state.currentConnectionID, null)));
+        q.add(item(I18n.t("main.menu.newconnection"), null, e -> openConnections(null, DBKind.TRINO)));
         q.addSeparator();
-        q.add(item("Перевірити оновлення", null, e -> update.checkNow(true)));
-        if (!Theme.MAC) q.add(item("Вийти", KeyStroke.getKeyStroke(KeyEvent.VK_Q, M), e -> quit()));
+        q.add(languageMenu());
+        q.add(item(I18n.t("main.menu.checkupdates"), null, e -> update.checkNow(true)));
+        if (!Theme.MAC) q.add(item(I18n.t("main.menu.quit"), KeyStroke.getKeyStroke(KeyEvent.VK_Q, M), e -> quit()));
 
-        JMenu ed = new JMenu("Правка");
-        ed.add(item("Знайти…", KeyStroke.getKeyStroke(KeyEvent.VK_F, M), e -> {   // курсор у результаті — пошук у результаті
+        JMenu ed = new JMenu(I18n.t("main.menu.edit"));
+        ed.add(item(I18n.t("main.menu.find"), KeyStroke.getKeyStroke(KeyEvent.VK_F, M), e -> {   // курсор у результаті — пошук у результаті
             java.awt.Component f = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
             if (f != null && SwingUtilities.isDescendingFrom(f, result)) result.focusFilter(); else editor.showFind();
         }));
-        ed.add(item("Знайти далі", KeyStroke.getKeyStroke(KeyEvent.VK_G, M), e -> editor.find(true)));
-        ed.add(item("Знайти попереднє", KeyStroke.getKeyStroke(KeyEvent.VK_G, M | InputEvent.SHIFT_DOWN_MASK), e -> editor.find(false)));
+        ed.add(item(I18n.t("main.menu.findnext"), KeyStroke.getKeyStroke(KeyEvent.VK_G, M), e -> editor.find(true)));
+        ed.add(item(I18n.t("main.menu.findprev"), KeyStroke.getKeyStroke(KeyEvent.VK_G, M | InputEvent.SHIFT_DOWN_MASK), e -> editor.find(false)));
         ed.addSeparator();
-        ed.add(item("Форматувати запит", KeyStroke.getKeyStroke(KeyEvent.VK_L, M | InputEvent.ALT_DOWN_MASK),
+        ed.add(item(I18n.t("main.menu.format"), KeyStroke.getKeyStroke(KeyEvent.VK_L, M | InputEvent.ALT_DOWN_MASK),
                 e -> editor.formatQuery(state.currentConnection() == null ? DBKind.TRINO : state.currentConnection().kind)));
-        ed.add(item("Закоментувати рядки", KeyStroke.getKeyStroke(KeyEvent.VK_SLASH, M), e -> editor.toggleComment()));
-        ed.add(item("Відступ", KeyStroke.getKeyStroke(KeyEvent.VK_CLOSE_BRACKET, M), e -> editor.indent(false)));
-        ed.add(item("Зменшити відступ", KeyStroke.getKeyStroke(KeyEvent.VK_OPEN_BRACKET, M), e -> editor.indent(true)));
+        ed.add(item(I18n.t("main.menu.comment"), KeyStroke.getKeyStroke(KeyEvent.VK_SLASH, M), e -> editor.toggleComment()));
+        ed.add(item(I18n.t("main.menu.indent"), KeyStroke.getKeyStroke(KeyEvent.VK_CLOSE_BRACKET, M), e -> editor.indent(false)));
+        ed.add(item(I18n.t("main.menu.outdent"), KeyStroke.getKeyStroke(KeyEvent.VK_OPEN_BRACKET, M), e -> editor.indent(true)));
         bar.add(q);
         bar.add(ed);
         return bar;
+    }
+
+    // Мова інтерфейсу: назви мов — їхніми ж мовами; не англійською — з «(Language)», щоб її знайшов і той, хто мови не знає
+    JMenu languageMenu() {
+        JMenu m = new JMenu(I18n.t("main.language") + (I18n.lang().equals("en") ? "" : " (Language)"));
+        ButtonGroup g = new ButtonGroup();
+        for (var l : I18n.NAMES.entrySet()) {
+            JRadioButtonMenuItem i = new JRadioButtonMenuItem(l.getValue(), l.getKey().equals(I18n.lang()));
+            i.addActionListener(e -> chooseLanguage(l.getKey()));
+            g.add(i);
+            m.add(i);
+        }
+        return m;
+    }
+
+    // Мова береться при запуску: записуємо вибір і пропонуємо перезапуск (текст — ще поточною мовою)
+    void chooseLanguage(String code) {
+        state.settings.put("language", code);
+        state.saveSettings();
+        if (code.equals(I18n.lang())) return;   // повернули ту, якою вікно вже говорить
+        String now = I18n.t("main.restart.now"), later = I18n.t("main.restart.later");
+        int a = JOptionPane.showOptionDialog(this, I18n.t("main.restart.text"), I18n.t("main.restart.title"), JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE, null, new Object[] {now, later}, now);
+        if (a == 0) App.restart(this, this::saveState);
     }
 
     static JMenuItem item(String title, KeyStroke ks, ActionListener a) {

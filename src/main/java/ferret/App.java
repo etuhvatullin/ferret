@@ -1,13 +1,18 @@
 package ferret;
 
+import ferret.core.I18n;
 import ferret.core.Store;
+import ferret.core.Updater;
 import ferret.ui.MainWindow;
 import ferret.ui.Splash;
 import ferret.ui.Theme;
 
+import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
+import java.awt.Component;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 // Точка входу Ferret (Java-версія для Mac і Windows). Системний проксі — для корпоративних мереж; на Mac меню — угорі
 // екрана й назва програми в ньому — Ferret.
@@ -45,6 +50,27 @@ public final class App {
             // заставка перевіряє оновлення; «Пізніше» — нова версія лишається в смузі вікна
             Splash.start(later -> MainWindow.open().update.afterSplash(later));
         });
+    }
+
+    // Перезапуск (зміна мови): save записує стан, тоді — нова копія Ferret і вихід. З ferret.jar запускати нічого —
+    // лише кажемо, що зміниться при наступному запуску. Mac — open -n на Ferret.app, інакше — сам запускач (Ferret.exe).
+    public static void restart(Component parent, Runnable save) {
+        String launcher = System.getProperty("jpackage.app-path");
+        if (launcher == null) {
+            JOptionPane.showMessageDialog(parent, I18n.t("app.restartmanual"), "Ferret", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        save.run();
+        Path app = Store.MAC ? Updater.installDir() : null;
+        try {
+            new ProcessBuilder(app != null ? List.of("open", "-n", app.toString()) : List.of(launcher))
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
+        } catch (Exception e) {   // нова копія не стартувала — не зникаємо, стан уже записано
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(parent, I18n.t("app.restartmanual"), "Ferret", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        System.exit(0);
     }
 
     static void snapshot(MainWindow w, Path out) {

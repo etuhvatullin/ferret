@@ -1,6 +1,7 @@
 package ferret.ui;
 
 import ferret.core.Dialect;
+import ferret.core.I18n;
 import ferret.core.Jdbc;
 import ferret.core.Json;
 import ferret.core.Model;
@@ -112,7 +113,7 @@ public final class AppState {
         for (Object o : Json.list(Store.loadJSON("tabs.json"))) {
             Map<String, Object> m = Json.map(o);
             try {
-                ConsoleTab t = new ConsoleTab(UUID.fromString(Json.str(m.get("id"))), Json.str(m.get("title"), "Консоль"),
+                ConsoleTab t = new ConsoleTab(UUID.fromString(Json.str(m.get("id"))), Json.str(m.get("title"), I18n.t("state.console")),
                         Json.str(m.get("sql"), ""), m.get("connection") == null ? null : UUID.fromString(Json.str(m.get("connection"))));
                 t.modified = date(m.get("modified"), Instant.EPOCH);
                 t.closedAt = date(m.get("closed"), null);
@@ -138,7 +139,7 @@ public final class AppState {
         boolean colored = false;
         for (Connection c : connections) if (c.color == null) { c.color = Model.leastUsedColor(connections); colored = true; }
         if (colored) saveConnections();
-        if (tabs.isEmpty()) tabs.add(new ConsoleTab(UUID.randomUUID(), "Консоль 1", "", connections.isEmpty() ? null : connections.get(0).id));
+        if (tabs.isEmpty()) tabs.add(new ConsoleTab(UUID.randomUUID(), I18n.t("state.consoleN", 1), "", connections.isEmpty() ? null : connections.get(0).id));
         selectTab(tabs.get(0));
     }
 
@@ -270,8 +271,8 @@ public final class AppState {
         Set<String> used = new HashSet<>();
         for (ConsoleTab t : tabs) used.add(t.title);
         for (ConsoleTab t : shelved) used.add(t.title);
-        while (used.contains("Консоль " + n)) n++;
-        ConsoleTab t = new ConsoleTab(UUID.randomUUID(), title != null ? title : "Консоль " + n, sql == null ? "" : sql, conn);
+        while (used.contains(I18n.t("state.consoleN", n))) n++;
+        ConsoleTab t = new ConsoleTab(UUID.randomUUID(), title != null ? title : I18n.t("state.consoleN", n), sql == null ? "" : sql, conn);
         int at = current == null ? tabs.size() : tabs.indexOf(current) + 1;
         tabs.add(Math.max(0, Math.min(at, tabs.size())), t);
         selectTab(t);
@@ -284,11 +285,11 @@ public final class AppState {
         if (i < 0) return;
         if (t.handle != null) t.handle.cancel();
         tabs.remove(i);
-        if (!(t.sql.isBlank() && t.title.startsWith("Консоль "))) {
+        if (!(t.sql.isBlank() && t.title.startsWith(I18n.t("state.consoleN", "")))) {
             t.closedAt = Instant.now();
             shelved.add(0, t);
         }
-        if (tabs.isEmpty()) tabs.add(new ConsoleTab(UUID.randomUUID(), "Консоль 1", "", currentConnectionID));
+        if (tabs.isEmpty()) tabs.add(new ConsoleTab(UUID.randomUUID(), I18n.t("state.consoleN", 1), "", currentConnectionID));
         selectTab(tabs.get(Math.max(0, Math.min(i, tabs.size() - 1))));
         emit("consoles");
         scheduleSave();
@@ -339,7 +340,7 @@ public final class AppState {
     private void closeTabForever(ConsoleTab t) {
         int i = tabs.indexOf(t);
         tabs.remove(t);
-        if (tabs.isEmpty()) tabs.add(new ConsoleTab(UUID.randomUUID(), "Консоль 1", "", currentConnectionID));
+        if (tabs.isEmpty()) tabs.add(new ConsoleTab(UUID.randomUUID(), I18n.t("state.consoleN", 1), "", currentConnectionID));
         selectTab(tabs.get(Math.max(0, Math.min(i, tabs.size() - 1))));
     }
 
@@ -388,7 +389,7 @@ public final class AppState {
         if (t == null || t.running) return;
         Connection c = connection(t);
         if (c == null) {
-            t.error = "Немає підключення — додай його ліворуч угорі.";
+            t.error = I18n.t("state.noConnection");
             emit("result");
             return;
         }
@@ -414,12 +415,12 @@ public final class AppState {
             }
             long ms = (System.nanoTime() - t0) / 1_000_000;
             QueryResult fr = r;
-            String fe = h.isCancelled() ? "Зупинено." : err;
+            String fe = h.isCancelled() ? I18n.t("jdbc.stopped") : err;
             SwingUtilities.invokeLater(() -> {
                 t.running = false;
                 t.handle = null;
                 if (fr != null && fe == null) { t.result = fr; t.error = null; } else t.error = fe;
-                if (!"Зупинено.".equals(fe)) record(c, sql, fr == null ? null : fr.rows.size(), ms, fe);
+                if (!I18n.t("jdbc.stopped").equals(fe)) record(c, sql, fr == null ? null : fr.rows.size(), ms, fe);
                 emit("result");
             });
         });

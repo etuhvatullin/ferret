@@ -1,6 +1,7 @@
 package ferret.ui;
 
 import com.formdev.flatlaf.FlatClientProperties;
+import ferret.core.I18n;
 import ferret.core.Jdbc;
 import ferret.core.Model.Connection;
 import ferret.core.SchemaItem;
@@ -53,8 +54,8 @@ public final class Sidebar extends JPanel {
     private JButton serverPick;
     private final JComponent serverDot = new DotHolder();
     private final JLabel lock = Ui.label("", Theme.MUTED, false, 11);
-    private final JToggleButton tablesBtn = new JToggleButton("Таблиці");
-    private final JToggleButton consolesBtn = new JToggleButton("Консолі");
+    private final JToggleButton tablesBtn = new JToggleButton(I18n.t("side.tables"));
+    private final JToggleButton consolesBtn = new JToggleButton(I18n.t("side.consoles"));
     private final CardLayout modeCards = new CardLayout();
     private final JPanel modes = new JPanel(modeCards);
     private final JTextField search = new JTextField();
@@ -103,7 +104,7 @@ public final class Sidebar extends JPanel {
         recentScroll.setBorder(BorderFactory.createEmptyBorder());
         recentScroll.getViewport().setBackground(Theme.PANEL);
         recentCount = new JSpinner(new SpinnerNumberModel(state.recentCount(), 1, 50, 1));
-        recentCount.setToolTipText("Скільки серверів показувати (1…50). Не вміщаються — список прокручується.");
+        recentCount.setToolTipText(I18n.t("side.recentCountTip"));
         recentCount.addChangeListener(e -> { state.setSetting("recentCount", ((Number) recentCount.getValue()).longValue()); rebuildRecent(); });
         add(recentSection(), BorderLayout.SOUTH);
 
@@ -165,7 +166,7 @@ public final class Sidebar extends JPanel {
         left.add(Box.createHorizontalGlue());
         JPanel right = Ui.row(0, 0, 0, 0);
         right.add(lock);
-        JButton gear = Ui.iconButton(Ui.icon(Ui.Glyph.GEAR, Theme.MUTED), "Налаштування підключень (" + Theme.CMD + ",)");
+        JButton gear = Ui.iconButton(Ui.icon(Ui.Glyph.GEAR, Theme.MUTED), I18n.t("side.connectionSettingsTip", Theme.CMD));
         gear.addActionListener(e -> onEditConnection.accept(state.currentConnection()));
         right.add(gear);
         r.add(left, BorderLayout.CENTER);
@@ -182,12 +183,12 @@ public final class Sidebar extends JPanel {
             m.add(i);
         }
         if (!state.connections.isEmpty()) m.addSeparator();
-        JMenuItem add = new JMenuItem("Нове підключення…");
+        JMenuItem add = new JMenuItem(I18n.t("side.newConnection"));
         add.addActionListener(e -> onNewConnection.run());
         m.add(add);
         Connection cur = state.currentConnection();
         if (cur != null) {
-            JMenuItem edit = new JMenuItem("Змінити «" + cur.name + "»…");
+            JMenuItem edit = new JMenuItem(I18n.t("side.editConnection", cur.name));
             edit.addActionListener(e -> onEditConnection.accept(cur));
             m.add(edit);
         }
@@ -237,14 +238,14 @@ public final class Sidebar extends JPanel {
 
     void rebuildHeader() {
         Connection c = state.currentConnection();
-        serverName.setText(c == null ? "Підключення" : c.name);
+        serverName.setText(c == null ? I18n.t("side.connection") : c.name);
         if (serverPick != null) serverPick.setToolTipText(c == null ? null : c.name + " · " + c.host);
         if (c == null) { lock.setText(""); lock.setIcon(null); }
-        else if (c.readOnly) { lock.setText("лише читання"); lock.setIcon(Ui.icon(Ui.Glyph.LOCK, Theme.MUTED, 11)); lock.setForeground(Theme.MUTED);
-            lock.setToolTipText("Лише читання: запити, що змінюють дані, не відправляються. Вимикається в налаштуваннях підключення."); }
-        else { lock.setText("запис дозволено"); lock.setIcon(Ui.icon(Ui.Glyph.WARN, Theme.ERROR, 11)); lock.setForeground(Theme.ERROR);
-            lock.setToolTipText("Запобіжник вимкнено: INSERT, UPDATE, DELETE, DROP підуть на сервер."); }
-        consolesBtn.setText("Консолі · " + state.consoles(state.currentConnectionID).size());
+        else if (c.readOnly) { lock.setText(I18n.t("side.readOnly")); lock.setIcon(Ui.icon(Ui.Glyph.LOCK, Theme.MUTED, 11)); lock.setForeground(Theme.MUTED);
+            lock.setToolTipText(I18n.t("side.readOnlyTip")); }
+        else { lock.setText(I18n.t("side.writeAllowed")); lock.setIcon(Ui.icon(Ui.Glyph.WARN, Theme.ERROR, 11)); lock.setForeground(Theme.ERROR);
+            lock.setToolTipText(I18n.t("side.writeAllowedTip")); }
+        consolesBtn.setText(I18n.t("side.consolesCount", state.consoles(state.currentConnectionID).size()));
         serverDot.repaint();
     }
 
@@ -254,7 +255,7 @@ public final class Sidebar extends JPanel {
         JPanel p = new JPanel(new BorderLayout());
         p.setOpaque(false);
         Box top = Box.createVerticalBox();
-        search.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Пошук таблиці або колонки");
+        search.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, I18n.t("side.searchTables"));
         search.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, Ui.icon(Ui.Glyph.SEARCH, Theme.MUTED));
         search.putClientProperty(FlatClientProperties.TEXT_FIELD_SHOW_CLEAR_BUTTON, true);
         search.getDocument().addDocumentListener(onChange(this::rebuildTree));
@@ -264,9 +265,9 @@ public final class Sidebar extends JPanel {
         JPanel bar = Ui.row(2, 12, 4, 8);
         bar.add(schemaInfo);
         bar.add(Box.createHorizontalGlue());
-        JButton refresh = Ui.plainButton("Оновити", Ui.icon(Ui.Glyph.REFRESH, Theme.MUTED, 12));
+        JButton refresh = Ui.plainButton(I18n.t("side.refresh"), Ui.icon(Ui.Glyph.REFRESH, Theme.MUTED, 12));
         refresh.putClientProperty(FlatClientProperties.STYLE, "font: -1; borderWidth: 0; background: null; margin: 1,4,1,4");
-        refresh.setToolTipText("Перечитати схему з сервера (" + Theme.CMD + "R)");
+        refresh.setToolTipText(I18n.t("side.refreshTip", Theme.CMD));
         refresh.addActionListener(e -> state.refreshSchema());
         bar.add(refresh);
         top.add(bar);
@@ -357,7 +358,7 @@ public final class Sidebar extends JPanel {
         Connection c = state.currentConnection();
         if (c == null) { schemaInfo.setText(""); return; }
         Instant upd = state.schemaUpdated.get(c.id);
-        schemaInfo.setText(state.refreshing.contains(c.id) ? "Оновлюю схему…" : upd == null ? "" : "Схема: " + ago(upd));
+        schemaInfo.setText(state.refreshing.contains(c.id) ? I18n.t("side.refreshing") : upd == null ? "" : I18n.t("side.schemaAge", ago(upd)));
         String q = search.getText().trim().toLowerCase();
         if (!q.isEmpty()) {
             List<SchemaItem> hits = new ArrayList<>();
@@ -370,13 +371,13 @@ public final class Sidebar extends JPanel {
                 for (SchemaItem i : items) if (i.detail() != null && i.name().toLowerCase().contains(q) && hits.size() < 300) hits.add(i);
             });
             for (SchemaItem i : hits) treeModel.addElement(new TreeRow(i, 0, true, false, String.join(".", i.path().subList(0, i.path().size() - 1))));
-            if (hits.isEmpty()) treeModel.addElement(new TreeRow(null, 0, true, false, state.tables.containsKey(c.id) ? "Нічого не знайдено" : "Перелік таблиць ще збирається…"));
+            if (hits.isEmpty()) treeModel.addElement(new TreeRow(null, 0, true, false, state.tables.containsKey(c.id) ? I18n.t("side.nothingFound") : I18n.t("side.tablesLoading")));
             return;
         }
         walk(List.of(), 0);
         String rootErr = state.treeErrors.get(state.treeKey(List.of()));
         if (rootErr != null) treeModel.addElement(new TreeRow(null, 0, true, false, "⚠ " + rootErr));
-        if (state.loading.contains(state.treeKey(List.of()))) treeModel.addElement(new TreeRow(null, 0, true, false, "Завантажую…"));
+        if (state.loading.contains(state.treeKey(List.of()))) treeModel.addElement(new TreeRow(null, 0, true, false, I18n.t("side.loading")));
     }
 
     void walk(List<String> path, int level) {
@@ -393,28 +394,28 @@ public final class Sidebar extends JPanel {
 
     static String ago(Instant t) {
         long m = Duration.between(t, Instant.now()).toMinutes();
-        if (m < 1) return "щойно";
-        if (m < 60) return m + " хв тому";
+        if (m < 1) return I18n.t("side.justNow");
+        if (m < 60) return I18n.t("side.minutesAgo", m);
         long h = m / 60;
-        if (h < 24) return h + " год тому";
-        return (h / 24) + " дн тому";
+        if (h < 24) return I18n.t("side.hoursAgo", h);
+        return I18n.t("side.daysAgo", h / 24);
     }
 
     JPopupMenu treeMenu(TreeRow r) {
         JPopupMenu m = new JPopupMenu();
         Connection c = state.currentConnection();
         if (r.item() == null || c == null) return m;
-        JMenuItem ins = new JMenuItem("Вставити імʼя в запит");
+        JMenuItem ins = new JMenuItem(I18n.t("side.insertName"));
         ins.addActionListener(e -> onInsert.accept(r.leaf() && r.item().detail() != null ? r.item().name() : SqlText.qualifiedName(c.kind, r.item().path())));
         m.add(ins);
-        JMenuItem copy = new JMenuItem("Копіювати імʼя");
+        JMenuItem copy = new JMenuItem(I18n.t("side.copyName"));
         copy.addActionListener(e -> ResultPanel.clip(r.item().detail() != null ? r.item().name() : SqlText.qualifiedName(c.kind, r.item().path())));
         m.add(copy);
         if (isTable(r) || r.note() != null && r.item().detail() == null && r.leaf()) {
-            JMenuItem sel = new JMenuItem("Копіювати «" + SqlText.selectAllSQL(c.kind, List.of("…")).replace("…", "таблиця") + "»");
+            JMenuItem sel = new JMenuItem(I18n.t("side.copySelectAll", SqlText.selectAllSQL(c.kind, List.of("…")).replace("…", I18n.t("side.tablePlaceholder"))));
             sel.addActionListener(e -> ResultPanel.clip(SqlText.selectAllSQL(c.kind, r.item().path())));
             m.add(sel);
-            JMenuItem prev = new JMenuItem("Перші 100 рядків");
+            JMenuItem prev = new JMenuItem(I18n.t("side.first100"));
             prev.addActionListener(e -> preview(r.item().path()));
             m.add(prev);
         }
@@ -433,14 +434,14 @@ public final class Sidebar extends JPanel {
     private JComponent consolesView() {
         JPanel p = new JPanel(new BorderLayout());
         p.setOpaque(false);
-        consoleSearch.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Знайти консоль за назвою чи текстом");
+        consoleSearch.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, I18n.t("side.searchConsoles"));
         consoleSearch.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, Ui.icon(Ui.Glyph.SEARCH, Theme.MUTED));
         consoleSearch.getDocument().addDocumentListener(onChange(this::rebuildConsoles));
         JPanel top = new JPanel(new BorderLayout(6, 0));
         top.setOpaque(false);
         top.setBorder(BorderFactory.createEmptyBorder(0, 10, 6, 10));
         top.add(consoleSearch, BorderLayout.CENTER);
-        JButton add = Ui.iconButton(Ui.icon(Ui.Glyph.PLUS, Theme.TEXT), "Нова консоль (" + Theme.CMD + "T)");
+        JButton add = Ui.iconButton(Ui.icon(Ui.Glyph.PLUS, Theme.TEXT), I18n.t("side.newConsoleTip", Theme.CMD));
         add.addActionListener(e -> state.newTab("", null, state.currentConnectionID));
         top.add(add, BorderLayout.EAST);
         p.add(top, BorderLayout.NORTH);
@@ -471,7 +472,7 @@ public final class Sidebar extends JPanel {
         Box b = Box.createVerticalBox();
         b.add(Ui.label((open ? "● " : "") + t.title, fg, open, 13));
         String first = firstLine(t.sql);
-        b.add(Ui.label(first.isEmpty() ? "порожня" : first, mut, false, 11));
+        b.add(Ui.label(first.isEmpty() ? I18n.t("side.emptyConsole") : first, mut, false, 11));
         p.add(b, BorderLayout.CENTER);
         p.add(Ui.label(Sidebar.ago(t.modified), mut, false, 10), BorderLayout.EAST);
         return p;
@@ -500,26 +501,26 @@ public final class Sidebar extends JPanel {
 
     JPopupMenu consoleMenu(ConsoleTab t) {
         JPopupMenu m = new JPopupMenu();
-        JMenuItem open = new JMenuItem("Відкрити");
+        JMenuItem open = new JMenuItem(I18n.t("side.open"));
         open.addActionListener(e -> state.openConsole(t.id));
         m.add(open);
         if (t.closedAt == null) {
-            JMenuItem close = new JMenuItem("Закрити вкладку");
+            JMenuItem close = new JMenuItem(I18n.t("side.closeTab"));
             close.addActionListener(e -> state.closeTab(t));
             m.add(close);
         }
-        JMenuItem rename = new JMenuItem("Перейменувати…");
+        JMenuItem rename = new JMenuItem(I18n.t("side.rename"));
         rename.addActionListener(e -> {
-            String s = (String) JOptionPane.showInputDialog(this, "Нова назва консолі:", "Перейменувати", JOptionPane.PLAIN_MESSAGE, null, null, t.title);
+            String s = (String) JOptionPane.showInputDialog(this, I18n.t("side.renamePrompt"), I18n.t("side.renameTitle"), JOptionPane.PLAIN_MESSAGE, null, null, t.title);
             state.renameConsole(t, s);
         });
         m.add(rename);
         m.addSeparator();
-        JMenuItem del = new JMenuItem("Видалити консоль…");
+        JMenuItem del = new JMenuItem(I18n.t("side.delete"));
         del.setForeground(Theme.ERROR);
         del.addActionListener(e -> {
-            int a = JOptionPane.showConfirmDialog(this, "Видалити консоль «" + t.title + "» назавжди?\nТекст запитів у ній зникне — повернути не вийде.",
-                    "Видалити консоль", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
+            int a = JOptionPane.showConfirmDialog(this, I18n.t("side.deleteConfirm", t.title),
+                    I18n.t("side.deleteTitle"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
             if (a == JOptionPane.OK_OPTION) state.deleteConsole(t);
         });
         m.add(del);
@@ -533,7 +534,7 @@ public final class Sidebar extends JPanel {
         p.setBackground(Theme.PANEL);
         p.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, Theme.LINE));
         JPanel h = Ui.row(8, 12, 4, 10);
-        h.add(Ui.label("ОСТАННІ СЕРВЕРИ", Theme.MUTED, true, 11));
+        h.add(Ui.label(I18n.t("side.recentServers"), Theme.MUTED, true, 11));
         h.add(Box.createHorizontalGlue());
         recentCount.setMaximumSize(new Dimension(64, 24));
         recentCount.setPreferredSize(new Dimension(64, 24));

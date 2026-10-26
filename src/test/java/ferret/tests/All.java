@@ -6,6 +6,9 @@ public final class All {
         System.setProperty("java.awt.headless", "true");
         // перевірки — у тимчасовій теці даних: справжні підключення й паролі не чіпаються
         if (System.getenv("FERRET_DATA_DIR") == null) ferret.core.Store.useDir(T.temp("ferret-test"));
+        ferret.core.I18n.use("uk");   // перевірки порівнюють українські тексти; мови — окремо, в I18nTests
+        I18nTests.run();
+        ferret.core.I18n.use("uk");
         CoreTests.run();
         SqlTextTests.run();
         FormatTests.run();

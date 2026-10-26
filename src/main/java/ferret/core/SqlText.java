@@ -279,12 +279,12 @@ public final class SqlText {
     public record RunChoice(String title, Range range) { }
 
     public static List<RunChoice> runChoices(String text, int cursor, Range selection) {
-        if (selection != null && selection.length() > 0) return List.of(new RunChoice("Виділене", selection));
+        if (selection != null && selection.length() > 0) return List.of(new RunChoice(I18n.t("sql.run.selection"), selection));
         Range whole = statementRange(text, cursor);
         if (whole == null) return List.of();
         Range sub = subqueryRange(text, whole, cursor);
-        if (sub != null) return List.of(new RunChoice("Підзапит", sub), new RunChoice("Увесь запит", whole));
-        return List.of(new RunChoice("Запит", whole));
+        if (sub != null) return List.of(new RunChoice(I18n.t("sql.run.subquery"), sub), new RunChoice(I18n.t("sql.run.whole"), whole));
+        return List.of(new RunChoice(I18n.t("sql.run.query"), whole));
     }
 
     public static String sqlWithoutComments(String sql) {
@@ -333,18 +333,14 @@ public final class SqlText {
         String first = words.get(0);
         if (!READ_ONLY_STARTS.contains(first)) {
             // текст однаковий для описки й для справжнього запису: запобіжник не вгадує намір
-            return "Увімкнено «лише читання»: дозволені SELECT, WITH, SHOW, DESCRIBE, EXPLAIN, VALUES, а запит "
-                    + "починається з «" + first.toUpperCase(Locale.ROOT) + "». Якщо це описка — виправ; якщо свідомий запис — вимкни "
-                    + "запобіжник у налаштуваннях підключення.";
+            return I18n.t("sql.readonly.start", first.toUpperCase(Locale.ROOT));
         }
         if (first.equals("explain") && words.contains("analyze")) {
-            return "EXPLAIN ANALYZE справді виконує запит — у режимі «лише читання» він заблокований.";
+            return I18n.t("sql.readonly.explainanalyze");
         }
         String w = strict ? writeWord(body) : null;
         if (w != null) {
-            return "Увімкнено «лише читання»: у запиті є «" + w.toUpperCase(Locale.ROOT) + "». Для баз через драйвер перевіряється кожне слово, "
-                    + "не лише перше: сервер сам від запису не береже, а MS SQL виконує кілька команд поспіль навіть без «;». "
-                    + "Якщо це назва колонки — візьми її в лапки.";
+            return I18n.t("sql.readonly.word", w.toUpperCase(Locale.ROOT));
         }
         return null;
     }
@@ -479,8 +475,9 @@ public final class SqlText {
     public static List<Suggestion> tableSuggestions(List<List<String>> paths, String fragment, DBKind kind, int tableDepth,
                                                     String defaultCatalog, int limit) {
         int depth = Math.max(1, tableDepth > 0 ? tableDepth : (kind == DBKind.TRINO ? 3 : 2));
-        List<String> names = kind == DBKind.TRINO ? List.of("каталог", "схема", "таблиця")
-                : kind == DBKind.CLICKHOUSE ? List.of("база", "таблиця") : List.of("база", "схема", "таблиця");
+        String db = I18n.t("sql.level.database"), schema = I18n.t("sql.level.schema"), table = I18n.t("sql.level.table");
+        List<String> names = kind == DBKind.TRINO ? List.of(I18n.t("sql.level.catalog"), schema, table)
+                : kind == DBKind.CLICKHOUSE ? List.of(db, table) : List.of(db, schema, table);
         List<String> levels = names.subList(Math.max(0, names.size() - depth), names.size());
         String cleaned = fragment.replace("\"", "").replace("`", "");
         List<String> parts = new ArrayList<>(List.of(cleaned.split("\\.", -1)));
@@ -529,7 +526,7 @@ public final class SqlText {
         }
         for (List<String> p : sorted) {
             if (p.size() == depth && p.get(p.size() - 1).toLowerCase(Locale.ROOT).startsWith(partial)) {
-                out.add(p, "таблиця · " + String.join(".", p.subList(0, p.size() - 1)), true);
+                out.add(p, I18n.t("sql.level.table.in", String.join(".", p.subList(0, p.size() - 1))), true);
             }
         }
         return out.list;

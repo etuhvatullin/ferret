@@ -1,6 +1,7 @@
 package ferret.ui;
 
 import com.formdev.flatlaf.FlatClientProperties;
+import ferret.core.I18n;
 import ferret.core.Model.Connection;
 import ferret.ui.AppState.ConsoleTab;
 
@@ -34,7 +35,7 @@ public final class TabBar extends JPanel {
     private final AppState state;
     final JPanel strip = new JPanel();
     private final JButton all = Ui.plainButton("", null);
-    private final JButton plus = Ui.iconButton(Ui.icon(Ui.Glyph.PLUS, Theme.ACCENT), "Нова вкладка (" + Theme.CMD + "T)");
+    private final JButton plus = Ui.iconButton(Ui.icon(Ui.Glyph.PLUS, Theme.ACCENT), I18n.t("tabs.newTabTip", Theme.CMD));
 
     public TabBar(AppState state) {
         super(new BorderLayout());
@@ -49,7 +50,7 @@ public final class TabBar extends JPanel {
         right.setLayout(new BoxLayout(right, BoxLayout.X_AXIS));
         right.setOpaque(false);
         all.setIcon(Ui.icon(Ui.Glyph.COPY, Theme.MUTED));
-        all.setToolTipText("Усі вкладки");
+        all.setToolTipText(I18n.t("tabs.all"));
         all.addActionListener(e -> allTabs().show(all, all.getWidth() - 340, all.getHeight()));
         plus.addActionListener(e -> state.newTab("", null, state.currentConnectionID));
         right.add(all);
@@ -101,7 +102,7 @@ public final class TabBar extends JPanel {
         all.setText(String.valueOf(state.tabs.size()));
         all.putClientProperty(FlatClientProperties.STYLE, hidden > 0 ? "foreground: #F2A33A; borderWidth: 0; focusWidth: 0; arc: 8"
                 : "foreground: #B3A390; borderWidth: 0; focusWidth: 0; arc: 8");
-        all.setToolTipText(hidden > 0 ? "Усі вкладки — ще " + hidden + " не вміщаються" : "Усі вкладки");
+        all.setToolTipText(hidden > 0 ? I18n.t("tabs.allHidden", hidden) : I18n.t("tabs.all"));
         strip.revalidate();
         strip.repaint();
     }
@@ -130,7 +131,7 @@ public final class TabBar extends JPanel {
             p.add(Ui.label(s, Theme.alpha(Theme.MUTED, 170), false, 10));
         }
         p.add(Ui.gap(6));
-        JButton x = Ui.iconButton(Ui.icon(Ui.Glyph.CLOSE, Theme.MUTED, 11), "Закрити вкладку — консоль лишиться в «Консолях»");
+        JButton x = Ui.iconButton(Ui.icon(Ui.Glyph.CLOSE, Theme.MUTED, 11), I18n.t("tabs.closeTip"));
         x.setPreferredSize(new Dimension(18, 18));
         x.setMaximumSize(new Dimension(18, 18));
         x.addActionListener(e -> state.closeTab(t));
@@ -152,7 +153,7 @@ public final class TabBar extends JPanel {
         p.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         p.setBackground(Theme.RAISED);
         JTextField q = new JTextField();
-        q.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Знайти вкладку");
+        q.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, I18n.t("tabs.search"));
         JPanel list = new JPanel();
         list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
         list.setOpaque(false);
@@ -163,7 +164,7 @@ public final class TabBar extends JPanel {
             for (ConsoleTab t : state.tabs) {
                 if (!s.isEmpty() && !t.title.toLowerCase().contains(s)) continue;
                 Connection c = state.connection(t);
-                groups.computeIfAbsent(c == null ? "без сервера" : c.name, k -> new ArrayList<>()).add(t);
+                groups.computeIfAbsent(c == null ? I18n.t("tabs.noServer") : c.name, k -> new ArrayList<>()).add(t);
             }
             groups.forEach((name, tabs) -> {
                 JLabel h = Ui.label(name.toUpperCase(), Theme.MUTED, true, 10);

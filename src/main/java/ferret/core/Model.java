@@ -20,7 +20,7 @@ public final class Model {
         BIGQUERY("bigquery", "Google BigQuery", 443), DATABRICKS("databricks", "Databricks", 443), VERTICA("vertica", "Vertica", 5433),
         DB2("db2", "IBM Db2", 50000), HANA("hana", "SAP HANA", 30015), TERADATA("teradata", "Teradata", 1025),
         EXASOL("exasol", "Exasol", 8563), FIREBIRD("firebird", "Firebird", 3050), H2("h2", "H2", 0),
-        JDBC("jdbc", "Інша база (свій драйвер)", 0);
+        JDBC("jdbc", I18n.t("model.kind.jdbc"), 0);   // знімок мови на момент завантаження класу
 
         public final String raw;
         public final String title;
@@ -128,7 +128,7 @@ public final class Model {
 
         @Override public int hashCode() { return id.hashCode(); }
 
-        @Override public String toString() { return name.isEmpty() ? "без назви" : name; }
+        @Override public String toString() { return name.isEmpty() ? I18n.t("model.unnamed") : name; }
     }
 
     // Найменш уживаний колір (за рівності — менший номер): нове підключення не повторює наявних, доки є вільні.

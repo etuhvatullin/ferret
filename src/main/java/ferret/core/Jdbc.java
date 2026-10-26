@@ -87,8 +87,8 @@ public final class Jdbc {
         if (l != null) return l;
         List<URL> urls = new ArrayList<>();
         for (Path j : jars) {
-            if (!Files.isRegularFile(j)) throw new DBError("Немає файлу драйвера: " + j);
-            try { urls.add(j.toUri().toURL()); } catch (Exception e) { throw new DBError("Незрозумілий шлях до драйвера: " + j); }
+            if (!Files.isRegularFile(j)) throw new DBError(I18n.t("jdbc.driver.nofile", j));
+            try { urls.add(j.toUri().toURL()); } catch (Exception e) { throw new DBError(I18n.t("jdbc.driver.badpath", j)); }
         }
         l = new URLClassLoader(urls.toArray(new URL[0]), ClassLoader.getPlatformClassLoader());
         URLClassLoader prev = loaders.putIfAbsent(key, l);
@@ -109,13 +109,13 @@ public final class Jdbc {
             if (d.getClass().getClassLoader() == l && d.acceptsURL(c.url())) return d;
         }
         int colon = c.url().indexOf(':', 5);
-        throw new DBError("У файлі драйвера немає драйвера для адреси «" + (colon > 0 ? c.url().substring(0, colon + 1) : c.url()) + "…».");
+        throw new DBError(I18n.t("jdbc.driver.nourl", colon > 0 ? c.url().substring(0, colon + 1) : c.url()));
     }
 
     static java.sql.Connection open(Conf c) throws Exception {
         Thread.currentThread().setContextClassLoader(loader(c.jars()));   // Snowflake, BigQuery шукають ресурси через нього
         java.sql.Connection x = driver(c).connect(c.url(), (Properties) c.props().clone());
-        if (x == null) throw new DBError("Драйвер не прийняв адресу підключення.");
+        if (x == null) throw new DBError(I18n.t("jdbc.driver.rejected"));
         if (c.c().readOnly) {
             try { x.setReadOnly(true); } catch (Throwable ignored) { }
             if (Drivers.rollbackGuard(c.c().kind)) {
@@ -183,7 +183,7 @@ public final class Jdbc {
 
     // Текст помилки: повідомлення першої причини, без стека; пароль, якщо драйвер його повторив, — прибрано.
     static DBError error(Throwable e, String password, Running r) {
-        if (r != null && r.isCancelled()) return new DBError("Зупинено.");
+        if (r != null && r.isCancelled()) return new DBError(I18n.t("jdbc.stopped"));
         if (e instanceof DBError d) return new DBError(Drivers.redact(d.getMessage(), password));
         Throwable t = e;
         while (t.getMessage() == null && t.getCause() != null && t.getCause() != t) t = t.getCause();
@@ -200,19 +200,19 @@ public final class Jdbc {
         StringBuilder all = new StringBuilder();
         for (Throwable t = e; t != null && all.length() < 20_000; t = t.getCause() == t ? null : t.getCause()) {
             if (t instanceof java.net.UnknownHostException && t.getMessage() != null)   // Linux дописує «: Name or service not known»
-                return "Сервер «" + t.getMessage().split("[\\s:]", 2)[0] + "» не знайдено — перевір адресу або VPN.";
+                return I18n.t("jdbc.hint.host", t.getMessage().split("[\\s:]", 2)[0]);
             all.append(t).append('\n');
         }
         String s = all.toString();
         java.util.regex.Matcher host = java.util.regex.Pattern.compile("UnknownHostException: ([^\\s:;,)]+)").matcher(s);
-        if (host.find()) return "Сервер «" + host.group(1) + "» не знайдено — перевір адресу або VPN.";
-        if (s.contains("ConnectException") || s.contains("Connection refused")) return "Сервер не приймає зʼєднання — перевір порт і VPN.";
+        if (host.find()) return I18n.t("jdbc.hint.host", host.group(1));
+        if (s.contains("ConnectException") || s.contains("Connection refused")) return I18n.t("jdbc.hint.refused");
         if (s.contains("SocketTimeoutException") || s.contains("HttpTimeoutException") || s.contains("connect timed out"))
-            return "Сервер не відповів вчасно — перевір VPN.";
+            return I18n.t("jdbc.hint.timeout");
         if (s.contains("Authentication failed") || s.contains("Unauthorized") || s.contains("password authentication failed")
                 || s.contains("Login failed for user") || s.contains("Access denied for user"))
-            return "Невірний логін або пароль — перевір їх у налаштуваннях підключення.";
-        if (s.contains("SSLException") || s.contains("SSLHandshakeException")) return "Не вдалося встановити захищене зʼєднання — перевір перемикач TLS у підключенні.";
+            return I18n.t("jdbc.hint.auth");
+        if (s.contains("SSLException") || s.contains("SSLHandshakeException")) return I18n.t("jdbc.hint.tls");
         return null;
     }
 
@@ -241,7 +241,7 @@ public final class Jdbc {
             try (Statement st = x.createStatement()) {
                 if (r != null) {
                     r.st = st;
-                    if (r.isCancelled()) throw new DBError("Зупинено.");
+                    if (r.isCancelled()) throw new DBError(I18n.t("jdbc.stopped"));
                 }
                 try { st.setMaxRows(limit + 1); } catch (Throwable ignored) { }
                 try { st.setFetchSize(Math.min(limit + 1, 1000)); } catch (Throwable ignored) { }
@@ -258,7 +258,7 @@ public final class Jdbc {
                     changed = Math.max(changed, 0) + n;
                     isRows = st.getMoreResults();
                 }
-                if (q.columns.isEmpty()) q.message = changed >= 0 ? "Виконано · змінено рядків: " + changed : "Виконано";
+                if (q.columns.isEmpty()) q.message = changed >= 0 ? I18n.t("jdbc.done.changed", I18n.num(changed)) : I18n.t("jdbc.done");
                 q.elapsedMs = (System.nanoTime() - t0) / 1_000_000;
                 return q;
             }

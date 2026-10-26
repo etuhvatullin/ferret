@@ -1,6 +1,7 @@
 package ferret.ui;
 
 import ferret.core.Format;
+import ferret.core.I18n;
 import ferret.core.Model.Connection;
 import ferret.core.Model.DBKind;
 import ferret.core.Range;
@@ -422,13 +423,13 @@ public final class EditorPanel extends JPanel {
     private void buildFindBar() {
         findBar.setBackground(Theme.PANEL);
         findBar.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Theme.LINE), BorderFactory.createEmptyBorder(4, 8, 4, 8)));
-        findField.putClientProperty(com.formdev.flatlaf.FlatClientProperties.PLACEHOLDER_TEXT, "Знайти в консолі");
+        findField.putClientProperty(com.formdev.flatlaf.FlatClientProperties.PLACEHOLDER_TEXT, I18n.t("editor.find"));
         findField.putClientProperty(com.formdev.flatlaf.FlatClientProperties.TEXT_FIELD_LEADING_ICON, Ui.icon(Ui.Glyph.SEARCH, Theme.MUTED));
         JPanel buttons = new JPanel();
         buttons.setOpaque(false);
         var prev = Ui.plainButton("↑", null);
         var next = Ui.plainButton("↓", null);
-        var close = Ui.iconButton(Ui.icon(Ui.Glyph.CLOSE, Theme.MUTED), "Закрити (Esc)");
+        var close = Ui.iconButton(Ui.icon(Ui.Glyph.CLOSE, Theme.MUTED), I18n.t("editor.closeFind"));
         prev.addActionListener(e -> find(false));
         next.addActionListener(e -> find(true));
         close.addActionListener(e -> closeFind());

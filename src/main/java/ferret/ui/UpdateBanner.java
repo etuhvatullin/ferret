@@ -1,6 +1,7 @@
 package ferret.ui;
 
 import ferret.App;
+import ferret.core.I18n;
 import ferret.core.Updater;
 
 import javax.swing.BorderFactory;
@@ -18,8 +19,8 @@ import java.awt.Dimension;
 // меню «Запит → Перевірити оновлення». «Оновити» завантажує й перевіряє архів, і Ferret перезапускається вже новим.
 public final class UpdateBanner extends JPanel {
     private final JLabel text = Ui.label("", Theme.ON_ACCENT, true, 12);
-    private final JButton go = Ui.plainButton("Оновити", Ui.icon(Ui.Glyph.DOWNLOAD, Theme.TEXT));
-    private final JButton notes = Ui.plainButton("Що нового", null);
+    private final JButton go = Ui.plainButton(I18n.t("update.go"), Ui.icon(Ui.Glyph.DOWNLOAD, Theme.TEXT));
+    private final JButton notes = Ui.plainButton(I18n.t("update.notes"), null);
     private Updater.Release release;
     public Runnable onQuit = () -> System.exit(0);
 
@@ -49,7 +50,7 @@ public final class UpdateBanner extends JPanel {
 
     void offer(Updater.Release r) {
         release = r;
-        text.setText("Є нова версія Ferret " + r.version() + " (у тебе " + App.version() + ")");
+        text.setText(I18n.t("update.available", r.version(), App.version()));
         setVisible(true);
         revalidate();
     }
@@ -67,7 +68,7 @@ public final class UpdateBanner extends JPanel {
 
     void checkNow(boolean manual) {
         if (!Updater.configured()) {
-            if (manual) JOptionPane.showMessageDialog(this, "У цій збірці оновлення не налаштовано.", "Оновлення", JOptionPane.INFORMATION_MESSAGE);
+            if (manual) JOptionPane.showMessageDialog(this, I18n.t("update.notconfigured"), I18n.t("update.title"), JOptionPane.INFORMATION_MESSAGE);
             return;
         }
         new Thread(() -> {
@@ -76,11 +77,11 @@ public final class UpdateBanner extends JPanel {
                 SwingUtilities.invokeLater(() -> {
                     if (r != null) offer(r);
                     else if (manual) {
-                        JOptionPane.showMessageDialog(this, "У тебе найновіша версія — " + App.version() + ".", "Оновлення", JOptionPane.INFORMATION_MESSAGE);
+                        JOptionPane.showMessageDialog(this, I18n.t("update.latest", App.version()), I18n.t("update.title"), JOptionPane.INFORMATION_MESSAGE);
                     }
                 });
             } catch (Exception ex) {
-                if (manual) SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, ex.getMessage(), "Оновлення", JOptionPane.WARNING_MESSAGE));
+                if (manual) SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, ex.getMessage(), I18n.t("update.title"), JOptionPane.WARNING_MESSAGE));
             }
         }, "ferret-update").start();
     }
@@ -88,17 +89,17 @@ public final class UpdateBanner extends JPanel {
     void install() {
         if (release == null) return;
         go.setEnabled(false);
-        text.setText("Завантажую Ferret " + release.version() + "…");
+        text.setText(I18n.t("update.downloading", release.version()));
         new Thread(() -> {
             try {
                 Updater.install(release, done -> SwingUtilities.invokeLater(() ->
-                        text.setText("Завантажую Ferret " + release.version() + "… " + Math.round(done * 100) + "%")));
+                        text.setText(I18n.t("update.downloading.progress", release.version(), Math.round(done * 100)))));
                 SwingUtilities.invokeLater(() -> onQuit.run());
             } catch (Exception ex) {
                 SwingUtilities.invokeLater(() -> {
                     go.setEnabled(true);
-                    text.setText("Є нова версія Ferret " + release.version());
-                    JOptionPane.showMessageDialog(this, ex.getMessage(), "Оновлення не вдалося", JOptionPane.WARNING_MESSAGE);
+                    text.setText(I18n.t("update.available.short", release.version()));
+                    JOptionPane.showMessageDialog(this, ex.getMessage(), I18n.t("update.failed"), JOptionPane.WARNING_MESSAGE);
                 });
             }
         }, "ferret-update").start();
