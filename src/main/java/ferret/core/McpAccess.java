@@ -65,13 +65,13 @@ public final class McpAccess {
         return k == null || k.isEmpty() ? null : k;
     }
 
-    // Новий ключ: попередні налаштування Claude перестають працювати
+    // Новий ключ: попередні налаштування Claude перестають працювати. null — не записався: показати такий ключ
+    // означало б дати людині ключ, якого після перезапуску вже не буде.
     public static String newKey() {
         byte[] b = new byte[24];
         new SecureRandom().nextBytes(b);
         String k = "fk_" + Base64.getUrlEncoder().withoutPadding().encodeToString(b);
-        Passwords.set(KEY_ID, k);
-        return k;
+        return Passwords.set(KEY_ID, k) ? k : null;
     }
 
     // MARK: журнал

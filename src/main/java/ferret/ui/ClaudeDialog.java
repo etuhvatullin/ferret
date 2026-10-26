@@ -119,9 +119,9 @@ final class ClaudeDialog {
         if (exe == null) {
             p.add(left(Ui.label(I18n.t("claude.setup.nopackage"), Theme.MUTED, false, 13)));
         } else {
-            p.add(left(copyRow(I18n.t("claude.setup.code"), I18n.t("claude.copy.command"), () -> codeCommand(exe, key(), false))));
-            if (Store.WINDOWS) p.add(left(copyRow(I18n.t("claude.setup.wsl"), I18n.t("claude.copy.command"), () -> codeCommand(exe, key(), true))));
-            p.add(left(copyRow(I18n.t("claude.setup.desktop"), I18n.t("claude.copy.config"), () -> desktopConfig(exe, key()))));
+            p.add(left(copyRow(I18n.t("claude.setup.code"), I18n.t("claude.copy.command"), () -> withKey(k -> codeCommand(exe, k, false)))));
+            if (Store.WINDOWS) p.add(left(copyRow(I18n.t("claude.setup.wsl"), I18n.t("claude.copy.command"), () -> withKey(k -> codeCommand(exe, k, true)))));
+            p.add(left(copyRow(I18n.t("claude.setup.desktop"), I18n.t("claude.copy.config"), () -> withKey(k -> desktopConfig(exe, k)))));
             p.add(Box.createVerticalStrut(6));
             p.add(left(AboutDialog.text(I18n.t("claude.setup.note"), 700)));
             p.add(Box.createVerticalStrut(12));
@@ -141,13 +141,19 @@ final class ClaudeDialog {
         return wrap;
     }
 
-    // Ключ створюється, коли він уперше потрібен
+    // Ключ створюється, коли він уперше потрібен; null — не записався (про збій Ferret уже сказав у вікні)
     static String key() {
         String k = McpAccess.key();
         return k != null ? k : McpAccess.newKey();
     }
 
-    static String masked(String k) { return k.substring(0, 3) + "••••••••" + k.substring(k.length() - 4); }
+    // Текст із ключем; без ключа — null, і копіювати нічого: команда без ключа не запрацює
+    static String withKey(java.util.function.Function<String, String> f) {
+        String k = key();
+        return k == null ? null : f.apply(k);
+    }
+
+    static String masked(String k) { return k == null ? "—" : k.substring(0, 3) + "••••••••" + k.substring(k.length() - 4); }
 
     // Claude Code: на Windows — і варіант для WSL (там Ferret.exe видно як /mnt/c/…, а змінну передає WSLENV)
     static String codeCommand(String exe, String key, boolean wsl) {
@@ -167,7 +173,9 @@ final class ClaudeDialog {
     static JPanel copyRow(String what, String button, java.util.function.Supplier<String> text) {
         JButton b = Ui.plainButton(button, null);
         b.addActionListener(e -> {
-            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(text.get()), null);
+            String t = text.get();
+            if (t == null) return;
+            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(t), null);
             b.setText(I18n.t("claude.copied"));
             Timer back = new Timer(1500, x -> b.setText(button));
             back.setRepeats(false);

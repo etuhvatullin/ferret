@@ -90,5 +90,43 @@ final class CoreTests {
         Files.writeString(old.resolve("connections.json"), "[]");
         m.invoke(null, old, to);
         check(Files.readString(to.resolve("connections.json")).contains("Trino"), "повторно не копіюється — свіже не затирається");
+
+        // Раніше всі збої тут ковтались: у колеги на Windows після перезапуску зникали підключення, а ключ Claude
+        // щоразу був новий — без жодного слова чому.
+        T.section("Збої файлів даних — не мовчки");
+        List<Store.Problem> seen = new java.util.ArrayList<>();
+        Store.onProblem(seen::add);
+        Path home = Store.dir();
+        Files.writeString(home.resolve("broken.json"), "[{\"id\": ");   // обірваний JSON
+        check(Store.loadJSON("broken.json") == null && !Files.exists(home.resolve("broken.json")), "зіпсований JSON — null, а сам файл відкладено");
+        check(seen.size() == 1 && !seen.get(0).write() && seen.get(0).aside() != null && Files.exists(seen.get(0).aside()),
+                "про зіпсований файл сказано, і відкладена копія на місці — наступне збереження її не затре");
+        check(Store.loadJSON("nothing-here.json") == null && seen.size() == 1, "файлу нема — це не збій");
+
+        // тека даних, яку не створити: на її місці звичайний файл — однаково на всіх системах, без прав доступу
+        Path blocked = T.temp("ferret-blocked").resolve("not-a-folder");
+        Files.writeString(blocked, "");
+        Store.useDir(blocked);
+        Passwords.reload();
+        seen.clear();
+        boolean threw = false;
+        try { Store.saveJSON("connections.json", List.of()); } catch (java.io.IOException e) { threw = true; }
+        check(threw && seen.size() == 1 && seen.get(0).write() && seen.get(0).file().endsWith("connections.json") && !seen.get(0).reason().isEmpty(),
+                "файл не записався — виняток тому, хто пише, і повідомлення вікну з причиною (" + seen + ")");
+        check(ferret.core.McpAccess.newKey() == null, "ключ Claude, що не записався, не видається за справжній");
+
+        // паролі, що не розшифровуються, — вбік і повідомлення (раніше відкладались мовчки, і паролі просто зникали)
+        Path pw = T.temp("ferret-pw");
+        Files.write(pw.resolve("passwords.key"), new byte[32]);
+        Files.write(pw.resolve("passwords.enc"), new byte[40]);
+        Store.useDir(pw);
+        Passwords.reload();
+        seen.clear();
+        check(Passwords.get(UUID.randomUUID()) == null && !Files.exists(pw.resolve("passwords.enc")), "нерозшифровний файл паролів відкладено");
+        check(seen.size() == 1 && !seen.get(0).write() && seen.get(0).aside() != null && seen.get(0).file().endsWith("passwords.enc"),
+                "і про це сказано (" + seen + ")");
+        Store.useDir(home);
+        Passwords.reload();
+        Store.onProblem(x -> { });
     }
 }

@@ -5,6 +5,7 @@ import ferret.App;
 import ferret.core.I18n;
 import ferret.core.Model.Connection;
 import ferret.core.Model.DBKind;
+import ferret.core.Store;
 import ferret.ui.AppState.ConsoleTab;
 import ferret.ui.AppState.HistoryItem;
 
@@ -36,7 +37,9 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 // Головне вікно: бічна панель ліворуч; праворуч — заголовок зі знаком FERRET (по центру правої частини), вкладки,
 // панель запуску, смуга сервера, редактор зверху і результат знизу. Межі між частинами памʼятаються. Меню «Запит» і
@@ -54,6 +57,7 @@ public final class MainWindow extends JFrame {
     private final JButton runBtn = Ui.accentButton(I18n.t("main.run"), Ui.icon(Ui.Glyph.PLAY, Theme.ON_ACCENT, 12));
     private final JButton stopBtn = Ui.plainButton(I18n.t("main.stop"), Ui.icon(Ui.Glyph.STOP, Theme.TEXT, 12));
     public final UpdateBanner update;
+    private final Set<String> shownProblems = new HashSet<>();
 
     public static MainWindow open() {
         MainWindow w = new MainWindow();
@@ -137,6 +141,8 @@ public final class MainWindow extends JFrame {
         state.on(e -> { if (e.equals("connection") || e.equals("tabs") || e.equals("connections")) refreshBand(); if (e.equals("result") || e.equals("tabs")) refreshRun(); });
         refreshBand();
         refreshRun();
+        // Збої файлів даних — у вікно; ті, що сталися під час завантаження, покажуться першими, ще до вікна підключень
+        Store.onProblem(p -> SwingUtilities.invokeLater(() -> showProblem(p)));
         SwingUtilities.invokeLater(() -> {
             split.setDividerLocation(state.setting("editorFraction", 40) / 100.0);
             tabBar.rebuild();
@@ -150,6 +156,16 @@ public final class MainWindow extends JFrame {
             state.settings.put("sidebarWidth", (long) main.getDividerLocation());
             bar.repaint();   // знак у заголовку Windows — по центру правої частини, тож іде за межею
         });
+    }
+
+    // Кожен вид збою — раз за запуск: вкладки зберігаються кожні кілька секунд, і без цього вікно поверталося б щоразу.
+    // Запис — один на всі файли (не пишеться один — не пишуться всі), читання — свій для кожного файлу.
+    void showProblem(Store.Problem p) {
+        if (!shownProblems.add(p.write() ? "write" : "read " + p.file())) return;
+        String text = p.write() ? I18n.t("store.write", p.file().getParent(), p.file().getFileName(), p.reason())
+                : p.aside() != null ? I18n.t("store.aside", p.file(), p.reason(), p.aside().getFileName())
+                : I18n.t("store.read", p.file(), p.reason());
+        Ask.inform(this, I18n.t("store.title"), text);
     }
 
     public void quit() {

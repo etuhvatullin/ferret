@@ -25,6 +25,11 @@ in git. Code comments are in Ukrainian.
   (`McpAccess.effective`). `Mcp` re-reads the key, rights, connections and passwords on every call — never cache them:
   "change it in Ferret and Claude sees it at once" is the feature. In `--mcp` mode stdout carries only JSON-RPC
   (`System.out` and `System.err` go to `mcp.log`); texts for Claude are English, the window's texts go through `I18n`.
+- **A failed read or write of a data file is never swallowed:** `Store.writeAtomic` / `loadJSON` / `Passwords` call
+  `Store.report`, and the main window shows it once per run (`MainWindow.showProblem`). A file that exists but can't be
+  parsed is moved aside (`Store.setAside`), so the next save can't overwrite it with an empty list. Reported on a
+  colleague's Windows (26.10.2026): connections vanished on every restart and the Claude key was new each time, and
+  Ferret said nothing — so even the cause could not be seen.
 - Questions and messages — `ui/Ask` (`confirm` / `inform` / `input`), not `JOptionPane`: its buttons are stretched to
   one width and say "OK" / "Cancel" in English in every language.
 

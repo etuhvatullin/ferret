@@ -60,13 +60,13 @@ public final class Passwords {
         if (Files.exists(f)) {
             try {
                 byte[] k = key(false);
-                if (k == null) throw new IOException("немає ключа");
+                if (k == null) throw new IOException("passwords.key is missing or damaged");
                 for (Map.Entry<String, Object> e : Json.map(Json.parse(new String(open(Files.readAllBytes(f), k), StandardCharsets.UTF_8))).entrySet()) {
                     if (e.getValue() != null) all.put(e.getKey().toUpperCase(), String.valueOf(e.getValue()));
                 }
             } catch (Exception e) {
-                // не розшифровується (зник ключ?) — відкласти вбік, а не перезаписати поверх
-                try { Files.move(f, f.resolveSibling("passwords.enc.unreadable-" + System.currentTimeMillis() / 1000)); } catch (IOException ignored) { }
+                // не розшифровується (зник ключ?) — відкласти вбік, а не перезаписати поверх, і сказати людині
+                Store.report(new Store.Problem(false, f, Store.reason(e), Store.setAside(f)));
             }
         }
         loaded = all;

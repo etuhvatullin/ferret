@@ -7,7 +7,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 // Тека даних: Mac — ~/Library/Application Support/Ferret/v2, Windows — %APPDATA%\Ferret\v2, інше — ~/.local/share/ferret/v2
@@ -39,9 +41,57 @@ public final class Store {
                 migrateFrom(base, d);
             } catch (IOException ignored) { }
         }
-        try { Files.createDirectories(d); } catch (IOException ignored) { }
+        try { Files.createDirectories(d); } catch (IOException e) { report(new Problem(true, d, reason(e), null)); }
         dir = d;
         return d;
+    }
+
+    // MARK: збої запису й читання
+
+    // Раніше кожен збій тут ковтався мовчки. У колеги на Windows після перезапуску зникали підключення, а ключ Claude
+    // щоразу був новий — і Ferret ні словом не сказав чому, тож причину не було видно навіть нам.
+    // write — запис (інакше читання); aside — куди відкладено файл, що не читається (null — не відкладали).
+    public record Problem(boolean write, Path file, String reason, Path aside) { }
+
+    private static final List<Problem> pending = new ArrayList<>();
+    private static Consumer<Problem> listener;
+
+    // Слухач збоїв (вікно Ferret); ті, що сталися до нього (під час завантаження), віддаються одразу.
+    public static void onProblem(Consumer<Problem> l) {
+        List<Problem> before;
+        synchronized (Store.class) {
+            listener = l;
+            before = new ArrayList<>(pending);
+            pending.clear();
+        }
+        before.forEach(l);
+    }
+
+    public static void report(Problem p) {
+        System.err.println("Ferret: " + (p.write() ? "не записано " : "не прочитано ") + p.file() + " — " + p.reason());
+        Consumer<Problem> l;
+        synchronized (Store.class) {
+            l = listener;
+            if (l == null && pending.size() < 20) pending.add(p);
+        }
+        if (l != null) l.accept(p);
+    }
+
+    // Назва помилки + текст: для AccessDeniedException текст — лише шлях, і без назви незрозуміло, що сталось.
+    public static String reason(Exception e) {
+        String m = e.getMessage();
+        return e.getClass().getSimpleName() + (m == null || m.isEmpty() ? "" : ": " + m);
+    }
+
+    // Файл, що не читається, — вбік із міткою часу, щоб наступне збереження не затерло його порожнім.
+    public static Path setAside(Path f) {
+        Path aside = f.resolveSibling(f.getFileName() + ".unreadable-" + System.currentTimeMillis() / 1000);
+        try {
+            Files.move(f, aside);
+            return aside;
+        } catch (IOException e) {
+            return null;
+        }
     }
 
     // Для перевірок: інша тека даних у межах одного процесу.
@@ -73,11 +123,21 @@ public final class Store {
 
     public static Path file(String name) { return dir().resolve(name); }
 
+    // Немає файлу — null мовчки; не читається — null і збій; не розбирається як JSON — файл вбік і збій.
     public static Object loadJSON(String name) {
+        Path p = file(name);
+        if (!Files.exists(p)) return null;
+        String text;
         try {
-            Path p = file(name);
-            return Files.exists(p) ? Json.parse(Files.readString(p, StandardCharsets.UTF_8)) : null;
+            text = Files.readString(p, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            report(new Problem(false, p, reason(e), null));
+            return null;
+        }
+        try {
+            return Json.parse(text);
         } catch (Exception e) {
+            report(new Problem(false, p, reason(e), setAside(p)));
             return null;
         }
     }
@@ -87,7 +147,17 @@ public final class Store {
     }
 
     // Запис через тимчасовий файл поруч і атомарну заміну; secret — лише для власника (600 там, де є права POSIX).
+    // Збій — і виняток тому, хто пише, і повідомлення слухачу: виклики самі його ковтають.
     public static void writeAtomic(Path target, byte[] data, boolean secret) throws IOException {
+        try {
+            write(target, data, secret);
+        } catch (IOException e) {
+            report(new Problem(true, target, reason(e), null));
+            throw e;
+        }
+    }
+
+    private static void write(Path target, byte[] data, boolean secret) throws IOException {
         Files.createDirectories(target.getParent());
         Path tmp = target.resolveSibling("." + target.getFileName() + ".tmp");
         Files.deleteIfExists(tmp);
