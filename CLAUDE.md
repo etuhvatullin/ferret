@@ -21,6 +21,10 @@ in git. Code comments are in Ukrainian.
 - **Text from a database is shown as plain text:** labels via `Ui.label` (HTML is off there), tooltips and the result
   header via `Ui.plain`. Swing renders a string starting with `<html>` as HTML, including images from the URLs in it,
   and anyone can put such a string into a database. Never show database text in a bare `new JLabel(…)`.
+- **Claude access (MCP):** the connection's own read-only guard always wins over Claude's rights
+  (`McpAccess.effective`). `Mcp` re-reads the key, rights, connections and passwords on every call — never cache them:
+  "change it in Ferret and Claude sees it at once" is the feature. In `--mcp` mode stdout carries only JSON-RPC
+  (`System.out` and `System.err` go to `mcp.log`); texts for Claude are English, the window's texts go through `I18n`.
 - Questions and messages — `ui/Ask` (`confirm` / `inform` / `input`), not `JOptionPane`: its buttons are stretched to
   one width and say "OK" / "Cancel" in English in every language.
 
@@ -38,8 +42,11 @@ The script headers are the source of truth; in short:
 
 `core/` — no Swing: models and file formats (`Model`, `Json`, `Store`), passwords, drivers (`Drivers` — download,
 `Jdbc` — queries, tree, read-only guard, human-readable network errors), SQL text (`SqlText`, `Format`, `Dialect`),
-result values (`Values`), `I18n`, `Updater`. `ui/` — Swing: `AppState` (state and `emit` events), `MainWindow`,
-`EditorPanel`, `ResultPanel`, `Sidebar`, `TabBar`, `ConnectionsDialog`, `SettingsDialog`, `AboutDialog`, `Help`
+result values (`Values`), `I18n`, `Updater`, the MCP server for Claude (`Mcp` — `Ferret --mcp`, JSON-RPC over
+stdin/stdout) and its settings (`McpAccess` — rights in `mcp.json`, the key in `passwords.enc`, the query log
+`mcp-journal.jsonl`). `ui/` — Swing: `AppState` (state and `emit` events), `MainWindow`,
+`EditorPanel`, `ResultPanel`, `Sidebar`, `TabBar`, `ConnectionsDialog`, `ClaudeDialog` (Claude access and its log),
+`SettingsDialog`, `AboutDialog`, `Help`
 (Help menu: shortcuts built from the menu itself, bug report, links), `SuggestionPopup`, `Splash`, `UpdateBanner`,
 `Theme` / `Ui` ("Nora" colours, drawn icons — never emoji as icons). New non-UI logic goes to `core/` with a test in
 `src/test/java/ferret/tests/`.
@@ -91,6 +98,14 @@ foreground: in a full-screen game `Robot` captures the game and WSLg windows get
   Test updates offline: a copy whose `update.json` points to `http://127.0.0.1:8765/latest.json`, then
   `Updater.install` with `-Djpackage.app-path`.
 - A jpackage app on Windows is two `Ferret.exe` processes (launcher and Java); that's normal.
+- **jpackage launchers pass stdin/stdout through** (checked: `Ferret.exe` from WSL, `Ferret.app/Contents/MacOS/Ferret`
+  over ssh), so `Ferret --mcp` needs no separate console launcher, and on Windows no console window appears. Claude
+  Code in WSL starts the Windows `Ferret.exe`, and environment variables reach it only through `WSLENV` — hence
+  `-e WSLENV=FERRET_KEY` in the WSL command.
+- **The Windows updater ends every `Ferret.exe` before `robocopy`**: an `--mcp` copy started by Claude holds the
+  app's files, and `/MIR` would leave a half-updated app.
+- **A `JTextArea` note inside a scroll pane scrolls the pane to its caret** — the connection form, grown taller than
+  the window, opened scrolled past the name field. Notes use a `NEVER_UPDATE` caret and the form opens at the top.
 - **Windows menu — FlatLaf's embedded menu bar (`setJMenuBar`), the wordmark is a "glue" inside it (`titleMark`).**
   With `FULL_WINDOW_CONTENT` the menu became a separate row, and moved into a title strip it only worked every other
   click (FlatLaf took the click for a window drag). macOS — screen menu bar and `FULL_WINDOW_CONTENT`; `⌘Q` goes

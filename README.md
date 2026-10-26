@@ -49,6 +49,31 @@ Passwords are stored only on your computer, in an encrypted file, and are never 
   "Save CSV…" take exactly what you see.
 - Every tab is a query with its own server. Closed tabs are kept under "Consoles" on the left.
 
+## Claude access (MCP)
+
+Claude Code and Claude Desktop can query your databases through Ferret. Ferret runs the queries with your saved
+connections, so Claude never sees your passwords, and you decide which connections it sees.
+
+1. Open **Connections → Claude access…** and set each connection to *Off*, *Read only* or *Read and write* (the same
+   choice is in each connection's settings). *Read and write* still obeys the connection's own read-only guard. Changes
+   apply at once: there is no need to reconnect Claude.
+2. In the same window copy the setup:
+   - **Claude Code**: run the copied command once in a terminal (`claude mcp add ferret --scope user …`). On Windows
+     there is a second command for Claude Code running in WSL.
+   - **Claude Desktop**: add the copied block to `claude_desktop_config.json` (Settings → Developer → Edit Config)
+     under `mcpServers` and restart Claude Desktop.
+3. Ask Claude about your data. Every query it runs is listed on the **Log** tab of the same window.
+
+Claude gets four tools: `list_connections`, `list_objects`, `find_tables` and `run_query` (up to 1,000 rows per
+query). Ferret doesn't have to be open: Claude starts it in the background (`Ferret --mcp`). Any other MCP client that
+can start a local server works the same way: the command is the Ferret app with `--mcp`, plus the environment
+variable `FERRET_KEY`.
+
+The key in the command lets that Claude in; **New key** turns off every Claude set up before. The key decides which
+apps Ferret answers. It does not protect from other programs running under your own user account: they can read
+Ferret's data folder anyway. When Ferret updates itself on Windows, it stops these background copies; reconnect
+Claude Code with `/mcp`.
+
 ## Keyboard shortcuts
 
 | Action | Windows | macOS |
@@ -78,7 +103,8 @@ passwords and tabs are kept.
 - Windows: `%APPDATA%\Ferret\v2`
 - macOS: `~/Library/Application Support/Ferret/v2`
 
-Connections, tabs, query history, encrypted passwords and the error log `ferret.log` — attach it when reporting a
+Connections, tabs, query history, encrypted passwords, Claude's access settings and query log, and the error log
+`ferret.log` — attach it when reporting a
 problem (**Help → Report a problem** opens a pre-filled [issue](../../issues)).
 
 ## Building
