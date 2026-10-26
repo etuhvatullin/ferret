@@ -395,6 +395,28 @@ public final class UiTests {
             about.dispose();
         });
         check(about != null && hasVersion.get(), "«Про Ferret» — з поточною версією " + ferret.App.version());
+
+        // «Доступ для Claude…» — у меню «Підключення»; права підключення зберігаються одразу, без кнопки
+        AtomicReference<Boolean> inMenu = new AtomicReference<>(false);
+        ui(() -> {
+            for (int i = 0; i < w.getJMenuBar().getMenuCount(); i++) {
+                javax.swing.JMenu jm = w.getJMenuBar().getMenu(i);
+                if (jm == null || !jm.getText().equals(ferret.core.I18n.t("main.menu.conn"))) continue;
+                for (java.awt.Component it : jm.getMenuComponents())
+                    if (it instanceof javax.swing.JMenuItem mi && ferret.core.I18n.t("main.menu.claude").equals(mi.getText())) inMenu.set(true);
+            }
+        });
+        SwingUtilities.invokeLater(() -> ClaudeDialog.show(w, s));
+        javax.swing.JDialog cl = waitTitled(ferret.core.I18n.t("claude.title"));
+        AtomicReference<String> saved = new AtomicReference<>("");
+        if (cl != null) {
+            ui(() -> find(cl, javax.swing.JComboBox.class).setSelectedIndex(1));
+            pause(200);
+            saved.set(String.valueOf(ferret.core.McpAccess.rights().values()));
+            ui(cl::dispose);
+            ferret.core.McpAccess.save(java.util.Map.of());
+        }
+        check(inMenu.get() && cl != null && saved.get().equals("[read]"), "«Доступ для Claude…» у меню «Підключення»; права зберігаються одразу (" + saved.get() + ")");
     }
 
     // Фокус у редактор: після закритого вікна він сам не вертається — тоді клацання по редактору

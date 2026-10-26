@@ -64,8 +64,11 @@ final class AboutDialog {
     }
 
     // Текст повністю (поле заставки ріже довгі описи оновлень): ширина правої частини, висота — скільки треба
-    static javax.swing.JTextArea text(String s) {
+    static javax.swing.JTextArea text(String s) { return text(s, 380); }
+
+    static javax.swing.JTextArea text(String s, int width) {
         javax.swing.JTextArea a = new javax.swing.JTextArea(s);
+        ((javax.swing.text.DefaultCaret) a.getCaret()).setUpdatePolicy(javax.swing.text.DefaultCaret.NEVER_UPDATE);   // у прокрутці не тягне її до себе
         a.setLineWrap(true);
         a.setWrapStyleWord(true);
         a.setEditable(false);
@@ -74,8 +77,8 @@ final class AboutDialog {
         a.setForeground(Theme.MUTED);
         a.setFont(a.getFont().deriveFont(13f));
         a.setBorder(null);
-        a.setSize(380, 1);
-        java.awt.Dimension d = new java.awt.Dimension(380, a.getPreferredSize().height);
+        a.setSize(width, 1);
+        java.awt.Dimension d = new java.awt.Dimension(width, a.getPreferredSize().height);
         a.setPreferredSize(d);
         a.setMaximumSize(d);
         return a;

@@ -133,6 +133,9 @@ public final class Updater {
             // chcp 65001 — інакше cmd читає шлях у своїй кодовій сторінці, і C:\Users\Олена\… перетворюється на сміття
             Files.writeString(cmd, "@echo off\r\nchcp 65001 >nul\r\n"
                     + ":wait\r\ntasklist /FI \"PID eq " + pid + "\" | find \"" + pid + "\" >nul && (timeout /t 1 /nobreak >nul & goto wait)\r\n"
+                    // Ferret, якого запустив Claude («Ferret --mcp»), тримає файли програми — robocopy лишив би її напівоновленою.
+                    // Вікно, яке оновлюється, уже закрилось; решта Ferret.exe — сервери для Claude (знову — /mcp у Claude Code).
+                    + "taskkill /F /IM Ferret.exe >nul 2>&1\r\ntimeout /t 1 /nobreak >nul\r\n"
                     + "robocopy \"" + fresh + "\" \"" + dir + "\" /MIR /NFL /NDL /NJH /NJS >nul\r\n"
                     + "start \"\" \"" + dir.resolve("Ferret.exe") + "\"\r\n"
                     // скрипт видаляє власну теку: (goto) спершу виходить зі скрипту, тож rd не обриває його посередині

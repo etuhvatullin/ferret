@@ -4,6 +4,7 @@ import com.formdev.flatlaf.FlatClientProperties;
 import ferret.core.Drivers;
 import ferret.core.I18n;
 import ferret.core.Jdbc;
+import ferret.core.McpAccess;
 import ferret.core.Model;
 import ferret.core.Model.Connection;
 import ferret.core.Model.DBKind;
@@ -60,6 +61,7 @@ public final class ConnectionsDialog extends JDialog {
     private final List<Connection> drafts = new ArrayList<>();
     private final Map<UUID, String> passwords = new HashMap<>();
     private final Set<UUID> deleted = new HashSet<>();
+    private final Map<UUID, String> claude = new HashMap<>(McpAccess.rights());   // права Claude — зберігаються разом із рештою
     private final DefaultListModel<Object> listModel = new DefaultListModel<>();
     private final JList<Object> list = new JList<>(listModel);
     private final JTextField search = new JTextField();
@@ -240,6 +242,8 @@ public final class ConnectionsDialog extends JDialog {
                 sp.getViewport().setBackground(Theme.BG);
                 sp.getVerticalScrollBar().setUnitIncrement(16);
                 formHolder.add(sp, BorderLayout.CENTER);
+                // форма вища за вікно — відкривається з початку (з назви), а не там, куди її прокрутив фокус
+                SwingUtilities.invokeLater(() -> sp.getViewport().setViewPosition(new java.awt.Point(0, 0)));
             }
             formHolder.revalidate();
             formHolder.repaint();
@@ -385,6 +389,9 @@ public final class ConnectionsDialog extends JDialog {
             roText.setForeground(c.readOnly ? Theme.MUTED : Theme.ERROR);
             field("", ro);
             field("", roText);
+            section();
+            field(I18n.t("conn.claude"), ClaudeDialog.rightBox(claude.getOrDefault(c.id, McpAccess.OFF), r -> claude.put(c.id, r)));
+            field("", note(I18n.t("conn.claude.note")));
             GridBagConstraints filler = new GridBagConstraints();
             filler.gridy = row++;
             filler.weighty = 1;
@@ -558,6 +565,7 @@ public final class ConnectionsDialog extends JDialog {
 
         JTextArea note(String s) {
             JTextArea a = new JTextArea(s);
+            ((javax.swing.text.DefaultCaret) a.getCaret()).setUpdatePolicy(javax.swing.text.DefaultCaret.NEVER_UPDATE);   // курсор примітки не прокручує форму
             a.setEditable(false);
             a.setLineWrap(true);
             a.setWrapStyleWord(true);
@@ -652,6 +660,8 @@ public final class ConnectionsDialog extends JDialog {
     void apply() {
         List<Connection> keep = drafts.stream().filter(c -> !deleted.contains(c.id)).map(Connection::copy).toList();
         state.applyConnections(new ArrayList<>(keep), new HashMap<>(passwords), new HashSet<>(deleted));
+        claude.keySet().removeIf(deleted::contains);
+        try { McpAccess.save(claude); } catch (java.io.IOException e) { e.printStackTrace(); }
         drafts.removeIf(c -> deleted.contains(c.id));
         passwords.clear();
         deleted.clear();

@@ -349,6 +349,7 @@ public final class MainWindow extends JFrame {
                 e -> openConnections(state.currentConnectionID, null)));
         conn.add(item(I18n.t("main.menu.newconnection"), null, e -> openConnections(null, DBKind.TRINO)));
         conn.add(item(I18n.t("main.menu.refreshschema"), KeyStroke.getKeyStroke(KeyEvent.VK_R, M), e -> state.refreshSchema()));
+        conn.add(item(I18n.t("main.menu.claude"), null, e -> ClaudeDialog.show(this, state)));
         conn.addSeparator();
         for (int i = 0; i < 9; i++) {
             int n = i;
