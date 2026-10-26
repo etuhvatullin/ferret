@@ -137,7 +137,7 @@ public final class TabBar extends JPanel {
         x.addActionListener(e -> state.closeTab(t));
         p.add(x);
         p.setMaximumSize(new Dimension(p.getPreferredSize().width + 4, 34));
-        p.setToolTipText(c == null ? t.title : t.title + " · " + c.name);
+        p.setToolTipText(Ui.plain(c == null ? t.title : t.title + " · " + c.name));   // назва вкладки перегляду — назва таблиці з бази
         p.addMouseListener(new MouseAdapter() {
             @Override public void mousePressed(MouseEvent e) {
                 if (javax.swing.SwingUtilities.isMiddleMouseButton(e)) state.closeTab(t); else state.selectTab(t);

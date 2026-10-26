@@ -130,6 +130,28 @@ public final class UiTests {
         check(ico.get() != null && ico.get().width == 72, "запит іде — значок видно (" + ico.get() + ")");
         ui(() -> { s.current.running = false; s.emit("result"); });
 
+        // текст із бази — лише як текст: «<html>…» у значенні й у назві колонки не малюється як HTML (див. Ui.noHtml)
+        ui(() -> {
+            QueryResult r = new QueryResult();
+            r.columns.add("<html><b>h</b>"); r.types.add("varchar");
+            r.rows.add(new String[] {"<html><b>v</b>"});
+            s.current.result = r;
+            s.current.lastSQL = "select 1";
+            s.emit("result");
+        });
+        pause(200);
+        AtomicReference<String> html = new AtomicReference<>();
+        ui(() -> {
+            javax.swing.JTable g = all(w.result, javax.swing.JTable.class).get(0);
+            javax.swing.JLabel cell = (javax.swing.JLabel) g.prepareRenderer(g.getCellRenderer(0, 1), 0, 1);
+            javax.swing.JLabel head = (javax.swing.JLabel) g.getTableHeader().getDefaultRenderer()
+                    .getTableCellRendererComponent(g, g.getColumnModel().getColumn(1).getHeaderValue(), false, false, -1, 1);
+            html.set((cell.getClientProperty(javax.swing.plaf.basic.BasicHTML.propertyKey) == null ? "" : "клітинка ")
+                    + (head.getClientProperty(javax.swing.plaf.basic.BasicHTML.propertyKey) == null ? "" : "заголовок ")
+                    + "|" + cell.getText() + "|" + head.getText().strip());
+        });
+        check(html.get().equals("|<html><b>v</b>|<html><b>h</b>"), "«<html>…» з бази — текстом у клітинці й заголовку (" + html.get() + ")");
+
         // «Показати всі» видно, коли результат обрізано
         ui(() -> {
             ConsoleTab cur = s.current;

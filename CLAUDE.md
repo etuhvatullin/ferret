@@ -18,6 +18,9 @@ in git. Code comments are in Ukrainian.
   run/stop). `Ctrl+,` / `⌘,` is Settings, `Ctrl+Shift+,` — Connections. On macOS "About" and "Settings…" live in
   the app menu (`Desktop.setAboutHandler` / `setPreferencesHandler` — Java can't add other items there).
 - **Every user-visible text goes through `I18n`** (see Languages below) — no string literals in the UI.
+- **Text from a database is shown as plain text:** labels via `Ui.label` (HTML is off there), tooltips and the result
+  header via `Ui.plain`. Swing renders a string starting with `<html>` as HTML, including images from the URLs in it,
+  and anyone can put such a string into a database. Never show database text in a bare `new JLabel(…)`.
 - Questions and messages — `ui/Ask` (`confirm` / `inform` / `input`), not `JOptionPane`: its buttons are stretched to
   one width and say "OK" / "Cancel" in English in every language.
 

@@ -334,7 +334,11 @@ public final class ResultPanel extends JPanel {
         table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         table.getTableHeader().setReorderingAllowed(false);
         table.setRowSorter(sorter);
-        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+        // заголовок — назви колонок із бази (у SELECT * — як їх назвали в таблиці): теж лише текстом, див. Ui.noHtml
+        javax.swing.table.TableCellRenderer names = table.getTableHeader().getDefaultRenderer();
+        table.getTableHeader().setDefaultRenderer((t, v, sel, focus, row, col) ->
+                names.getTableCellRendererComponent(t, v instanceof String s ? Ui.plain(s) : v, sel, focus, row, col));
+        table.setDefaultRenderer(Object.class, Ui.noHtml(new DefaultTableCellRenderer() {
             @Override public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean focus, int row, int col) {
                 Component c = super.getTableCellRendererComponent(t, v == null ? "NULL" : v, sel, false, row, col);
                 if (col == 0) { setText(String.valueOf(row + 1)); setForeground(Theme.MUTED); setHorizontalAlignment(SwingConstants.RIGHT); }   // № — як видно
@@ -346,7 +350,7 @@ public final class ResultPanel extends JPanel {
                 if (!sel) setBackground(row % 2 == 0 ? Theme.BG : (java.awt.Color) UIManager.get("Table.alternateRowColor"));
                 return c;
             }
-        });
+        }));
         // ⌘C — виділені клітинки таблицею з заголовком
         EditorPanel.bind(table, KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_C, Theme.MENU_MASK), "copy-tsv", () -> clip(tsvSelected()));
         JScrollPane sp = new JScrollPane(table);

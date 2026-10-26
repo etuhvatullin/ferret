@@ -10,6 +10,7 @@ public final class All {
         I18nTests.run();
         ferret.core.I18n.use("uk");
         CoreTests.run();
+        PlainTextTests.run();
         SqlTextTests.run();
         FormatTests.run();
         DialectTests.run();

@@ -29,8 +29,22 @@ import java.awt.geom.RoundRectangle2D;
 public final class Ui {
     private Ui() { }
 
+    // Текст із бази — лише як текст. Рядок, що починається з «<html>», Swing малює як сторінку, разом із картинками
+    // з адрес у ньому, а значення в базі може вписати будь-хто. Тому HTML вимкнено в усіх мітках Ferret; де властивість
+    // не передати (підказки, заголовок таблиці) — plain().
+    public static <T extends JComponent> T noHtml(T c) {
+        c.putClientProperty("html.disable", Boolean.TRUE);
+        return c;
+    }
+
+    // Пробіл попереду — і Swing уже не бачить HTML: він дивиться лише на перші шість знаків
+    public static String plain(String s) {
+        return javax.swing.plaf.basic.BasicHTML.isHTMLString(s) ? " " + s : s;
+    }
+
     public static JLabel label(String text, Color color, boolean bold, float size) {
-        JLabel l = new JLabel(text);
+        JLabel l = noHtml(new JLabel());
+        l.setText(text);   // після noHtml: HTML-подання будується в момент, коли міняється текст
         l.setForeground(color);
         l.setFont(l.getFont().deriveFont(bold ? Font.BOLD : Font.PLAIN, size));
         return l;
