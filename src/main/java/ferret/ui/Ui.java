@@ -76,6 +76,20 @@ public final class Ui {
 
     public static Component gap(int w) { return Box.createHorizontalStrut(w); }
 
+    // Кнопки в один рядок, що НІКОЛИ не переноситься; найбільший розмір — поточний бажаний, рахується вже на екрані.
+    // Був FlowLayout із максимумом, замороженим до показу вікна: на Windows із масштабом 125% текст на екрані на 1 px
+    // ширший, і друга кнопка заставки («Обновить») зʼїжджала в другий рядок, якого не видно.
+    public static JComponent buttons(int gap, JButton... bs) {
+        Box r = new Box(BoxLayout.X_AXIS) {
+            @Override public Dimension getMaximumSize() { return getPreferredSize(); }
+        };
+        for (int i = 0; i < bs.length; i++) {
+            if (i > 0) r.add(gap(gap));
+            r.add(bs[i]);
+        }
+        return r;
+    }
+
     // Кнопка-дія медом (темний текст на меду — контраст ~9:1).
     public static JButton accentButton(String text, Icon icon) {
         JButton b = new JButton(text, icon);

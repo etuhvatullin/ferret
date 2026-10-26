@@ -117,6 +117,10 @@ foreground: in a full-screen game `Robot` captures the game and WSLg windows get
   through `quit()` (QuitHandler).
 - **A label with only `setPreferredSize` in a `BoxLayout` is 0×0 when it has no text** (BoxLayout also uses min/max) —
   set all three sizes.
+- **A row of buttons is `Ui.buttons`, never a `FlowLayout` with `setMaximumSize(getPreferredSize())`.** The maximum
+  was frozen before the window was shown; on Windows at 125 % / 175 % scale the on-screen text came out 1 px wider, the
+  row wrapped, and the splash's second button ("Update", in Russian) moved into an invisible second line — people
+  could not update from the splash at all. A WSLg run does not reproduce it (other fonts): check with the Windows JDK.
 - **Menu shortcut labels on Windows/Linux use English key names** ("Ctrl+Period") → `FerretMenuItemUI`.
 - **Find in editor:** match colour — `setMarkAllHighlightColor`; on closing the panel — `clearMarkAllHighlights()`.
 - **Sorting and search in results** — `TableRowSorter` + `RowFilter`, comparator by column type (`core/Values`).

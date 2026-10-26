@@ -19,7 +19,6 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
 import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -160,7 +159,7 @@ public final class Splash extends JFrame {
         JButton go = Ui.accentButton(I18n.t("splash.update"), Ui.icon(Ui.Glyph.DOWNLOAD, Theme.ON_ACCENT, 12));
         later.addActionListener(e -> finish(r));
         go.addActionListener(e -> download(r));
-        state.add(left(buttons(later, go)));
+        state.add(left(Ui.buttons(8, later, go)));
         getRootPane().setDefaultButton(go);
         EditorPanel.bind(getRootPane(), KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "later", () -> { if (later.isShowing()) later.doClick(); });
         refresh();
@@ -191,7 +190,7 @@ public final class Splash extends JFrame {
         JButton again = Ui.accentButton(I18n.t("splash.retry"), null);
         later.addActionListener(e -> finish(r));
         again.addActionListener(e -> download(r));
-        state.add(left(buttons(later, again)));
+        state.add(left(Ui.buttons(8, later, again)));
         getRootPane().setDefaultButton(again);
         refresh();
     }
@@ -258,17 +257,6 @@ public final class Splash extends JFrame {
     static JComponent left(JComponent c) {
         c.setAlignmentX(Component.LEFT_ALIGNMENT);
         return c;
-    }
-
-    static JPanel buttons(JButton... bs) {
-        JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        p.setOpaque(false);
-        for (int i = 0; i < bs.length; i++) {
-            if (i > 0) p.add(Box.createHorizontalStrut(8));
-            p.add(bs[i]);
-        }
-        p.setMaximumSize(p.getPreferredSize());
-        return p;
     }
 
     // Що нового — до трьох рядків по ширині правої частини

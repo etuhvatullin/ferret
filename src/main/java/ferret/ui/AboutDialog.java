@@ -14,7 +14,6 @@ import javax.swing.KeyStroke;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Cursor;
-import java.awt.FlowLayout;
 import java.awt.event.KeyEvent;
 
 // «Про Ferret» — у стилі заставки: ліворуч нора з тхором, праворуч знак, версія, кілька слів про те, навіщо це все,
@@ -40,15 +39,9 @@ final class AboutDialog {
         r.add(Box.createVerticalStrut(12));
         r.add(Splash.left(Ui.label(I18n.t("about.signature"), Theme.TEXT, true, 13)));
         r.add(Box.createVerticalGlue());
-        JPanel links = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        links.setOpaque(false);
-        links.add(link(d, "GitHub", Help.REPO));
-        links.add(Box.createHorizontalStrut(16));
-        links.add(link(d, I18n.t("about.license"), Help.REPO + "/blob/main/LICENSE"));
-        links.add(Box.createHorizontalStrut(16));
-        links.add(link(d, I18n.t("about.thirdparty"), Help.REPO + "/blob/main/THIRD-PARTY.md"));
-        links.setMaximumSize(links.getPreferredSize());
-        r.add(Splash.left(links));
+        r.add(Splash.left(Ui.buttons(16, link(d, "GitHub", Help.REPO),
+                link(d, I18n.t("about.license"), Help.REPO + "/blob/main/LICENSE"),
+                link(d, I18n.t("about.thirdparty"), Help.REPO + "/blob/main/THIRD-PARTY.md"))));
 
         JPanel right = new JPanel(new BorderLayout());
         right.setOpaque(false);
