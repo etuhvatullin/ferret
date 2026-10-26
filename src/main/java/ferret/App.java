@@ -27,6 +27,13 @@ public final class App {
     }
 
     public static void main(String[] args) {
+        // «Ferret --mcp» — сервер для Claude (core/Mcp): без вікна, лише стандартні ввід і вивід
+        if (List.of(args).contains("--mcp")) {
+            System.setProperty("java.awt.headless", "true");   // на Mac без значка в Dock
+            System.setProperty("java.net.useSystemProxies", "true");
+            ferret.core.Mcp.serve(System.getenv("FERRET_KEY"), version());
+            return;
+        }
         System.setProperty("java.net.useSystemProxies", "true");
         if (Store.MAC) {
             System.setProperty("apple.laf.useScreenMenuBar", "true");

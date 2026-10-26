@@ -16,6 +16,7 @@ public final class All {
         DialectTests.run();
         DriversTests.run();
         JdbcTests.run();
+        McpTests.run();
         T.cleanup();
         System.out.println(T.failures == 0 ? "\nУсе гаразд." : "\nПомилок: " + T.failures);
         System.exit(T.failures == 0 ? 0 : 1);
