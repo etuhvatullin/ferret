@@ -1,0 +1,4 @@
+# Бібліотеки, що вкладаються в програму (Maven Central; build.sh звіряє sha1). Драйвери баз сюди НЕ входять —
+# їх програма качає сама під час роботи (ліцензії Oracle / MySQL — на користувача).
+com.formdev:flatlaf:3.7.2
+com.fifesoft:rsyntaxtextarea:4.0.1

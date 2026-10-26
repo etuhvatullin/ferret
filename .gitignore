@@ -1,0 +1,13 @@
+lib/
+build/
+.cache/
+spike/build/
+spike/*.jar
+*.class
+update.json
+dist/
+spike/
+archive/
+CLAUDE.local.md
+release-internal.sh
+update-*.json
