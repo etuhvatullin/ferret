@@ -92,7 +92,9 @@ foreground: in a full-screen game `Robot` captures the game and WSLg windows get
   can't read 26.x servers → `client.use_http_compression=true`. Run the live test against a fresh server (its table
   has an array column).
 - **`.cmd` files must have Windows line endings (CRLF, `.gitattributes`)** and `chcp 65001` first: otherwise cmd drops
-  lines (empty install path) and breaks non-ASCII paths. Guard `robocopy /MIR` against an empty target.
+  lines (empty install path) and breaks non-ASCII paths. Guard `robocopy /MIR` against an empty target and against a
+  folder with someone else's files: the installer's folder picker returns only a folder named `Ferret` that is new,
+  empty or holds `Ferret.exe`. Installer answers are digits: with a Cyrillic layout the `C` key types `С`.
 - **`start` with a `.cmd` opens `cmd /k`** — a window stayed after updating. Launch with `start "" /min cmd /c …` from a
   folder outside the app; the work folder removes itself (`(goto) 2>nul & rd /s /q …`), leftovers — `Updater.cleanupOld()`.
   Test updates offline: a copy whose `update.json` points to `http://127.0.0.1:8765/latest.json`, then

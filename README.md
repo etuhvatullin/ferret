@@ -15,8 +15,10 @@ Download the latest version from [Releases](../../releases/latest).
 **Windows** — `Ferret-<version>-windows.zip`:
 
 1. Extract the archive (right-click → "Extract All").
-2. Double-click `Install Ferret.cmd`. No admin rights needed: Ferret goes to `%LOCALAPPDATA%\Programs\Ferret`, with
-   shortcuts in the Start menu and on the desktop.
+2. Double-click `Install Ferret.cmd`. No admin rights needed. Press Enter to install to
+   `%LOCALAPPDATA%\Programs\Ferret`, or type `2` and press Enter to pick another folder: Ferret goes into a `Ferret`
+   folder inside the one you choose. Pick a place you can write to without admin rights (not Program Files), or Ferret
+   couldn't update itself there. Shortcuts go to the Start menu and the desktop.
 3. If Windows says "Windows protected your PC", click "More info" → "Run anyway". The app is not code-signed, so
    SmartScreen doesn't know it yet.
 
