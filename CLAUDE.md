@@ -18,6 +18,8 @@ in git. Code comments are in Ukrainian.
   run/stop). `Ctrl+,` / `⌘,` is Settings, `Ctrl+Shift+,` — Connections. On macOS "About" and "Settings…" live in
   the app menu (`Desktop.setAboutHandler` / `setPreferencesHandler` — Java can't add other items there).
 - **Every user-visible text goes through `I18n`** (see Languages below) — no string literals in the UI.
+- Questions and messages — `ui/Ask` (`confirm` / `inform` / `input`), not `JOptionPane`: its buttons are stretched to
+  one width and say "OK" / "Cancel" in English in every language.
 
 ## Commands
 
@@ -96,6 +98,8 @@ foreground: in a full-screen game `Robot` captures the game and WSLg windows get
 - **Find in editor:** match colour — `setMarkAllHighlightColor`; on closing the panel — `clearMarkAllHighlights()`.
 - **Sorting and search in results** — `TableRowSorter` + `RowFilter`, comparator by column type (`core/Values`).
   Re-apply comparators after `model.set`. Copy/CSV follow the visible order (`convertRowIndexToModel`).
+- **A UI test that clicks a button opening a modal dialog must click via `SwingUtilities.invokeLater`** — called
+  directly, the click waits until the dialog closes, and the test hangs on it.
 - An exception in a test's `main` doesn't end the process (the UI thread is alive) → `System.exit` in `catch`.
 - In WSL `pkill -f <text>` also kills your own shell if the text is in the command — use `pgrep -x java` and
   `/proc/<pid>/cmdline`.

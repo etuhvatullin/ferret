@@ -10,7 +10,6 @@ import javax.swing.JFrame;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.KeyStroke;
@@ -42,7 +41,7 @@ final class Help {
             }
         } catch (Exception ignored) { }
         java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(url), null);
-        JOptionPane.showMessageDialog(parent, I18n.t("help.nobrowser", url), "Ferret", JOptionPane.INFORMATION_MESSAGE);
+        Ask.inform(parent, "Ferret", I18n.t("help.nobrowser", url));
     }
 
     // Заявка — англійською (репозиторій публічний), з версією, системою й Java, і нагадуванням про ferret.log

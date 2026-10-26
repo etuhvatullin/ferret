@@ -438,7 +438,7 @@ public final class ResultPanel extends JPanel {
             // BOM — щоб Excel відкрив кирилицю без «кракозябр»
             Files.write(f.toPath(), ("﻿" + csv(model.r, viewRows())).getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            javax.swing.JOptionPane.showMessageDialog(this, I18n.t("result.savefailed", e.getMessage()));
+            Ask.inform(this, "Ferret", I18n.t("result.savefailed", e.getMessage()));
         }
     }
 

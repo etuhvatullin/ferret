@@ -24,7 +24,6 @@ import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JPopupMenu;
@@ -211,9 +210,7 @@ public final class ConnectionsDialog extends JDialog {
 
     void deleteSelected() {
         if (selected == null) return;
-        int a = JOptionPane.showConfirmDialog(this, I18n.t("conn.delete.confirm", selected.name), I18n.t("conn.delete.title"),
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
-        if (a != JOptionPane.OK_OPTION) return;
+        if (!Ask.confirm(this, I18n.t("conn.delete.title"), I18n.t("conn.delete.confirm", selected.name), I18n.t("common.delete"), I18n.t("common.cancel"))) return;
         deleted.add(selected.id);
         rebuildList();
         select(drafts.stream().filter(c -> !deleted.contains(c.id)).findFirst().orElse(null));
@@ -451,7 +448,7 @@ public final class ConnectionsDialog extends JDialog {
                             if (!c.driverJars.contains(p)) c.driverJars.add(p);
                         }
                     } catch (Exception ex) {
-                        JOptionPane.showMessageDialog(ConnectionsDialog.this, ex.getMessage());
+                        Ask.inform(ConnectionsDialog.this, "Ferret", ex.getMessage());
                     }
                     rebuildForm();
                 });

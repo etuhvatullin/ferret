@@ -9,7 +9,6 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
@@ -35,8 +34,7 @@ public final class UpdateBanner extends JPanel {
         add(go);
         setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
         setVisible(false);
-        notes.addActionListener(e -> JOptionPane.showMessageDialog(this, release == null ? "" : release.notes(), "Ferret " + (release == null ? "" : release.version()),
-                JOptionPane.INFORMATION_MESSAGE));
+        notes.addActionListener(e -> Ask.inform(this, "Ferret " + (release == null ? "" : release.version()), release == null ? "" : release.notes()));
         go.addActionListener(e -> install());
     }
 
@@ -69,7 +67,7 @@ public final class UpdateBanner extends JPanel {
 
     void checkNow(boolean manual) {
         if (!Updater.configured()) {
-            if (manual) JOptionPane.showMessageDialog(this, I18n.t("update.notconfigured"), I18n.t("update.title"), JOptionPane.INFORMATION_MESSAGE);
+            if (manual) Ask.inform(this, I18n.t("update.title"), I18n.t("update.notconfigured"));
             return;
         }
         new Thread(() -> {
@@ -78,11 +76,11 @@ public final class UpdateBanner extends JPanel {
                 SwingUtilities.invokeLater(() -> {
                     if (r != null) offer(r);
                     else if (manual) {
-                        JOptionPane.showMessageDialog(this, I18n.t("update.latest", App.version()), I18n.t("update.title"), JOptionPane.INFORMATION_MESSAGE);
+                        Ask.inform(this, I18n.t("update.title"), I18n.t("update.latest", App.version()));
                     }
                 });
             } catch (Exception ex) {
-                if (manual) SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, ex.getMessage(), I18n.t("update.title"), JOptionPane.WARNING_MESSAGE));
+                if (manual) SwingUtilities.invokeLater(() -> Ask.inform(this, I18n.t("update.title"), ex.getMessage()));
             }
         }, "ferret-update").start();
     }
@@ -100,7 +98,7 @@ public final class UpdateBanner extends JPanel {
                 SwingUtilities.invokeLater(() -> {
                     go.setEnabled(true);
                     text.setText(I18n.t("update.available.short", release.version()));
-                    JOptionPane.showMessageDialog(this, ex.getMessage(), I18n.t("update.failed"), JOptionPane.WARNING_MESSAGE);
+                    Ask.inform(this, I18n.t("update.failed"), ex.getMessage());
                 });
             }
         }, "ferret-update").start();

@@ -18,7 +18,6 @@ import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JRootPane;
@@ -377,10 +376,8 @@ public final class MainWindow extends JFrame {
         state.settings.put("language", code);
         state.saveSettings();
         if (code.equals(I18n.lang())) return;   // повернули ту, якою вікно вже говорить
-        String now = I18n.t("main.restart.now"), later = I18n.t("main.restart.later");
-        int a = JOptionPane.showOptionDialog(this, I18n.t("main.restart.text"), I18n.t("main.restart.title"), JOptionPane.YES_NO_OPTION,
-                JOptionPane.QUESTION_MESSAGE, null, new Object[] {now, later}, now);
-        if (a == 0) App.restart(this, this::saveState);
+        if (Ask.confirm(this, I18n.t("main.restart.title"), I18n.t("main.restart.text"), I18n.t("main.restart.now"), I18n.t("main.restart.later")))
+            App.restart(this, this::saveState);
     }
 
     static JMenuItem item(String title, KeyStroke ks, ActionListener a) {

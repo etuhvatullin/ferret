@@ -342,26 +342,25 @@ public final class UiTests {
         check(menus.containsAll(java.util.List.of("Файл", "Редагування", "Запит", "Підключення", "Довідка")), "меню: " + menus);
         java.awt.Robot r = new java.awt.Robot();
         r.setAutoDelay(30);
-        ui(() -> { w.toFront(); w.editor.area().requestFocusInWindow(); });
-        pause(400);
-        if (!w.editor.area().isFocusOwner()) { System.out.println("— натискання меню пропущено: вікно не отримало фокус"); return; }
+        if (!focusEditor(r, w)) { System.out.println("— натискання меню пропущено: вікно не отримало фокус"); return; }
         int m = Theme.MENU_MASK == java.awt.event.InputEvent.META_DOWN_MASK ? KeyEvent.VK_META : KeyEvent.VK_CONTROL;
         press(r, m, KeyEvent.VK_SHIFT, KeyEvent.VK_COMMA);
         ConnectionsDialog cd = waitDialog();
         check(cd != null, "натиск Ctrl+Shift+, — вікно «Підключення»");
         if (cd != null) { ui(cd::dispose); pause(300); }
-        ui(() -> w.editor.area().requestFocusInWindow());
-        pause(300);
+        focusEditor(r, w);
         press(r, m, KeyEvent.VK_COMMA);
         javax.swing.JDialog sd = waitTitled(ferret.core.I18n.t("settings.title"));
         check(sd != null, "натиск Ctrl+, — вікно «Налаштування»");
         if (sd != null) {
-            ui(() -> {
+            // не чекати на дію: «Зберегти» відкриває питання про перезапуск, і воно тримає, доки не відповіси
+            SwingUtilities.invokeLater(() -> {
                 javax.swing.JComboBox<?> lang = find(sd, javax.swing.JComboBox.class);
                 lang.setSelectedItem("English");
                 button(sd, ferret.core.I18n.t("settings.save")).doClick();
             });
             javax.swing.JDialog ask = waitTitled(ferret.core.I18n.t("main.restart.title"));   // «Перезапустити зараз?» — пізніше
+            check(ask != null && button(ask, ferret.core.I18n.t("main.restart.later")) != null, "питання про перезапуск — вікно Ferret із кнопкою «Пізніше»");
             if (ask != null) ui(() -> button(ask, ferret.core.I18n.t("main.restart.later")).doClick());
             pause(300);
             check(Files.readString(Store.file("settings.json")).contains("\"language\" : \"en\""), "збережена мова — у settings.json");
@@ -374,6 +373,20 @@ public final class UiTests {
             about.dispose();
         });
         check(about != null && hasVersion.get(), "«Про Ferret» — з поточною версією " + ferret.App.version());
+    }
+
+    // Фокус у редактор: після закритого вікна він сам не вертається — тоді клацання по редактору
+    static boolean focusEditor(java.awt.Robot r, MainWindow w) throws Exception {
+        ui(() -> { w.toFront(); w.editor.area().requestFocusInWindow(); });
+        pause(400);
+        if (!w.editor.area().isFocusOwner()) {
+            java.awt.Point p = w.editor.area().getLocationOnScreen();
+            r.mouseMove(p.x + 40, p.y + 20);
+            r.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+            r.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+            pause(600);
+        }
+        return w.editor.area().isFocusOwner();
     }
 
     static javax.swing.JDialog waitTitled(String title) throws Exception {
@@ -460,11 +473,12 @@ public final class UiTests {
         boolean all = waitFor(() -> s.current.result != null && s.current.result.rows.size() == 600);
         pause(300);
         javax.swing.JTable t2 = find(w.result, javax.swing.JTable.class);
-        check(all && t2 != null && t2.getRowCount() == 600 && button(w.result, "Показати всі") == null, "«Показати всі» — 600 рядків, кнопку сховано");
+        check(all && t2 != null && t2.getRowCount() == 600 && button(w.result, "Показати всі") == null, "«Показати всі» — 600 рядків, кнопку сховано"
+                + (all ? "" : " (рядків " + (s.current.result == null ? "—" : s.current.result.rows.size()) + ", іде " + s.current.running + ", помилка " + s.current.error
+                + ", фокус " + java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() + ")"));
         ui(() -> { w.editor.area().setText("delete from t"); w.editor.area().setCaretPosition(3); });
         int m = Theme.MENU_MASK == java.awt.event.InputEvent.META_DOWN_MASK ? KeyEvent.VK_META : KeyEvent.VK_CONTROL;
-        ui(() -> w.editor.area().requestFocusInWindow());
-        pause(200);
+        focusEditor(r, w);
         press(r, m, KeyEvent.VK_ENTER);
         boolean refused = waitFor(() -> s.current.error != null);
         check(refused && s.current.error.contains("лише читання"), "лише читання: delete не відправлено, видно причину");

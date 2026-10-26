@@ -18,7 +18,6 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
@@ -511,7 +510,7 @@ public final class Sidebar extends JPanel {
         }
         JMenuItem rename = new JMenuItem(I18n.t("side.rename"));
         rename.addActionListener(e -> {
-            String s = (String) JOptionPane.showInputDialog(this, I18n.t("side.renamePrompt"), I18n.t("side.renameTitle"), JOptionPane.PLAIN_MESSAGE, null, null, t.title);
+            String s = Ask.input(this, I18n.t("side.renameTitle"), I18n.t("side.renamePrompt"), t.title, I18n.t("side.renameTitle"));
             state.renameConsole(t, s);
         });
         m.add(rename);
@@ -519,9 +518,8 @@ public final class Sidebar extends JPanel {
         JMenuItem del = new JMenuItem(I18n.t("side.delete"));
         del.setForeground(Theme.ERROR);
         del.addActionListener(e -> {
-            int a = JOptionPane.showConfirmDialog(this, I18n.t("side.deleteConfirm", t.title),
-                    I18n.t("side.deleteTitle"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
-            if (a == JOptionPane.OK_OPTION) state.deleteConsole(t);
+            if (Ask.confirm(this, I18n.t("side.deleteTitle"), I18n.t("side.deleteConfirm", t.title), I18n.t("common.delete"), I18n.t("common.cancel")))
+                state.deleteConsole(t);
         });
         m.add(del);
         return m;

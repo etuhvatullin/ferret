@@ -7,7 +7,6 @@ import ferret.ui.MainWindow;
 import ferret.ui.Splash;
 import ferret.ui.Theme;
 
-import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import java.awt.Component;
 import java.nio.file.Files;
@@ -57,7 +56,7 @@ public final class App {
     public static void restart(Component parent, Runnable save) {
         String launcher = System.getProperty("jpackage.app-path");
         if (launcher == null) {
-            JOptionPane.showMessageDialog(parent, I18n.t("app.restartmanual"), "Ferret", JOptionPane.INFORMATION_MESSAGE);
+            ferret.ui.Ask.inform(parent, "Ferret", I18n.t("app.restartmanual"));
             return;
         }
         save.run();
@@ -67,7 +66,7 @@ public final class App {
                     .redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
         } catch (Exception e) {   // нова копія не стартувала — не зникаємо, стан уже записано
             e.printStackTrace();
-            JOptionPane.showMessageDialog(parent, I18n.t("app.restartmanual"), "Ferret", JOptionPane.INFORMATION_MESSAGE);
+            ferret.ui.Ask.inform(parent, "Ferret", I18n.t("app.restartmanual"));
             return;
         }
         System.exit(0);
