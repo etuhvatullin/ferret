@@ -520,8 +520,35 @@ public final class UiTests {
         check(all && t2 != null && t2.getRowCount() == 600 && button(w.result, "Показати всі") == null, "«Показати всі» — 600 рядків, кнопку сховано"
                 + (all ? "" : " (рядків " + (s.current.result == null ? "—" : s.current.result.rows.size()) + ", іде " + s.current.running + ", помилка " + s.current.error
                 + ", фокус " + java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner() + ")"));
-        ui(() -> { w.editor.area().setText("delete from t"); w.editor.area().setCaretPosition(3); });
         int m = Theme.MENU_MASK == java.awt.event.InputEvent.META_DOWN_MASK ? KeyEvent.VK_META : KeyEvent.VK_CONTROL;
+        // повне значення клітинки: ⇧↵ на виділеній клітинці (у JTable ⇧↵ — «рядок вище», наша прив'язка має бути сильнішою)
+        ui(() -> { t2.changeSelection(0, 2, false, false); t2.requestFocusInWindow(); });
+        pause(200);
+        press(r, KeyEvent.VK_SHIFT, KeyEvent.VK_ENTER);
+        javax.swing.JDialog cell = waitWindow(ferret.core.I18n.t("cell.title", "B", 1));
+        check(cell != null && find(cell.getContentPane(), RSyntaxTextArea.class).getText().equals("рядок 1"), "⇧↵ на клітинці — вікно «B · рядок 1» з повним значенням");
+        if (cell != null) ui(cell::dispose);
+        java.awt.Rectangle rc = t2.getCellRect(1, 2, true);
+        java.awt.Point tp = t2.getLocationOnScreen();
+        r.mouseMove(tp.x + rc.x + rc.width / 2, tp.y + rc.y + rc.height / 2);
+        for (int i = 0; i < 2; i++) { r.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK); r.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK); }
+        javax.swing.JDialog cell2 = waitWindow(ferret.core.I18n.t("cell.title", "B", 2));
+        check(cell2 != null, "подвійний клік по клітинці — те саме вікно");
+        if (cell2 != null) ui(cell2::dispose);
+        // ⌘B на назві таблиці в редакторі — вікно «Таблиця» (H2: DDL складено з опису драйвера)
+        Connection wr = h2.copy();
+        wr.readOnly = false;
+        ferret.core.Jdbc.run(wr, "create table if not exists ui_t(a int primary key, b varchar(10))", "", 10, null);
+        ui(s::refreshSchema);
+        boolean known = waitFor(() -> s.tables.getOrDefault(h2.id, List.of()).contains(List.of("PUBLIC", "UI_T")));
+        ui(() -> { w.editor.area().setText("select * from ui_t"); w.editor.area().setCaretPosition(16); });
+        focusEditor(r, w);
+        press(r, m, KeyEvent.VK_B);
+        javax.swing.JDialog tw = waitWindow("UI_T — PUBLIC");
+        boolean ddl = tw != null && waitFor(() -> find(tw.getContentPane(), RSyntaxTextArea.class).getText().startsWith("CREATE TABLE PUBLIC.UI_T"));
+        check(known && ddl, "⌘B на назві таблиці — вікно «Таблиця» з DDL" + (known ? "" : " (таблиці не підтягнулись у підказку)"));
+        if (tw != null) ui(tw::dispose);
+        ui(() -> { w.editor.area().setText("delete from t"); w.editor.area().setCaretPosition(3); });
         focusEditor(r, w);
         press(r, m, KeyEvent.VK_ENTER);
         boolean refused = waitFor(() -> s.current.error != null);
@@ -536,6 +563,15 @@ public final class UiTests {
             pause(100);
         }
         return false;
+    }
+
+    static javax.swing.JDialog waitWindow(String title) throws Exception {
+        for (int i = 0; i < 50; i++) {
+            for (java.awt.Window x : java.awt.Window.getWindows())
+                if (x instanceof javax.swing.JDialog d && d.isShowing() && title.equals(d.getTitle())) return d;
+            pause(100);
+        }
+        return null;
     }
 
     static javax.swing.JButton button(java.awt.Container c, String text) {

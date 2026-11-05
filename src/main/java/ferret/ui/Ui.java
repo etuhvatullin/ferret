@@ -42,6 +42,15 @@ public final class Ui {
         return javax.swing.plaf.basic.BasicHTML.isHTMLString(s) ? " " + s : s;
     }
 
+    // Підказка з текстом з бази в кілька рядків. HTML тут лише заради переносу, тож усе екрановано: «<» не стане тегом,
+    // картинка за адресою не завантажиться. Довгий текст — по ширині 360 px.
+    public static String tip(String title, String body) {
+        String t = (title == null ? "" : "<b>" + escape(title) + "</b>") + (body == null ? "" : (title == null ? "" : "<br>") + escape(body));
+        return "<html>" + (body != null && body.length() > 60 ? "<div style='width:360px'>" + t + "</div>" : t) + "</html>";
+    }
+
+    public static String escape(String s) { return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>"); }
+
     public static JLabel label(String text, Color color, boolean bold, float size) {
         JLabel l = noHtml(new JLabel());
         l.setText(text);   // після noHtml: HTML-подання будується в момент, коли міняється текст

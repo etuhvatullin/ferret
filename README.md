@@ -48,6 +48,13 @@ Passwords are stored only on your computer, in an encrypted file, and are never 
   rows containing the text. Select cells → `Ctrl+C` pastes as a table into Excel / Google Sheets; "Copy all" and
   "Save CSV…" take exactly what you see.
 - Every tab is a query with its own server. Closed tabs are kept under "Consoles" on the left.
+- **Show table** (right-click a table on the left, or `Ctrl+B` on a table name in the query) opens a window with the
+  table's DDL and its card: data until (the max of its date column from file statistics), last write, rows, size and
+  partitions — read from metadata only, the table itself is never scanned; estimates are marked. Trino, ClickHouse and
+  MySQL give their own `SHOW CREATE`, BigQuery its `INFORMATION_SCHEMA` DDL, Postgres and MS SQL views their own text;
+  for other tables Ferret builds the DDL from the driver's table description (no CHECK constraints, partitions or
+  triggers — the window says so). Column comments from the database show as tooltips in the tree.
+- **Full cell value**: double-click a cell or `Shift+Enter` — the whole value with line wrapping, "Format JSON" for JSON.
 
 ## Claude access (MCP)
 
@@ -64,8 +71,8 @@ connections, so Claude never sees your passwords, and you decide which connectio
      under `mcpServers` and restart Claude Desktop.
 3. Ask Claude about your data. Every query it runs is listed on the **Log** tab of the same window.
 
-Claude gets four tools: `list_connections`, `list_objects`, `find_tables` and `run_query` (up to 1,000 rows per
-query). Ferret doesn't have to be open: Claude starts it in the background (`Ferret --mcp`). Any other MCP client that
+Claude gets five tools: `list_connections`, `list_objects`, `find_tables`, `describe_table` (the same DDL and card as
+the **Show table** window, the DDL in full) and `run_query` (up to 1,000 rows per query). Ferret doesn't have to be open: Claude starts it in the background (`Ferret --mcp`). Any other MCP client that
 can start a local server works the same way: the command is the Ferret app with `--mcp`, plus the environment
 variable `FERRET_KEY`.
 
@@ -86,6 +93,8 @@ Claude Code with `/mcp`.
 | Settings | `Ctrl+,` | `⌘,` |
 | Connections | `Ctrl+Shift+,` | `⇧⌘,` |
 | Refresh table tree | `Ctrl+R` | `⌘R` |
+| Show table (DDL and card) | `Ctrl+B` | `⌘B` |
+| Full cell value | `Shift+Enter` | `⇧↵` |
 | Find in query (in results — search in results) | `Ctrl+F`, then `Ctrl+G` | `⌘F`, then `⌘G` |
 | Format query | `Ctrl+Alt+L` | `⌥⌘L` |
 | Comment lines | `Ctrl+/` | `⌘/` |

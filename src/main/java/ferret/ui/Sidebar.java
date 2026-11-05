@@ -45,7 +45,8 @@ import java.util.function.Consumer;
 
 // Бічна панель: вибір сервера (меню) і шестерня підключень, перемикач «Таблиці | Консолі». Таблиці — пошук і дерево
 // схем (плоским списком рядків з відступами): клік — розгорнути, подвійний клік по таблиці — перші 100 рядків у новій
-// вкладці, правий клік — вставити імʼя чи скопіювати. Консолі — усі консолі сервера, відкриті й закриті; видалити
+// вкладці, правий клік — вставити імʼя, скопіювати чи «Показати таблицю» (DDL і картка); коментар колонки чи таблиці з
+// бази — у підказці. Консолі — усі консолі сервера, відкриті й закриті; видалити
 // остаточно — лише тут і з підтвердженням. Унизу — «Останні сервери» (скільки — число в заголовку).
 public final class Sidebar extends JPanel {
     private final AppState state;
@@ -70,6 +71,7 @@ public final class Sidebar extends JPanel {
     public Consumer<Connection> onEditConnection = c -> { };
     public Runnable onNewConnection = () -> { };
     public Consumer<String> onInsert = s -> { };
+    public Consumer<List<String>> onShowTable = p -> { };
 
     record TreeRow(SchemaItem item, int level, boolean leaf, boolean open, String note) { }
 
@@ -310,7 +312,7 @@ public final class Sidebar extends JPanel {
             p.setLayout(new BorderLayout());   // у BoxLayout мітка не стискається й не ставить «…»
             p.add(Ui.label(first, r.note().startsWith("⚠") ? Theme.ERROR : Theme.MUTED, false, 12), BorderLayout.CENTER);
             p.setPreferredSize(new Dimension(40, 22));
-            if (!first.equals(r.note())) p.setToolTipText("<html>" + r.note().replace("&", "&amp;").replace("<", "&lt;").replace("\n", "<br>") + "</html>");
+            if (!first.equals(r.note())) p.setToolTipText(Ui.tip(null, r.note()));
             else if (r.note().startsWith("⚠")) p.setToolTipText(r.note());
             return p;
         }
@@ -333,6 +335,8 @@ public final class Sidebar extends JPanel {
             p.add(Ui.gap(8));
             p.add(Ui.label(r.note(), Theme.MUTED, false, 11));
         }
+        if (r.item().comment() != null)
+            p.setToolTipText(Ui.tip(r.item().name() + (r.item().detail() == null ? "" : " · " + r.item().detail().toLowerCase()), r.item().comment()));
         return p;
     }
 
@@ -417,8 +421,17 @@ public final class Sidebar extends JPanel {
             JMenuItem prev = new JMenuItem(I18n.t("side.first100"));
             prev.addActionListener(e -> preview(r.item().path()));
             m.add(prev);
+            JMenuItem show = new JMenuItem(I18n.t("main.menu.showtable"));
+            show.addActionListener(e -> onShowTable.accept(r.item().path()));
+            m.add(show);
         }
         return m;
+    }
+
+    // Таблиця, виділена в дереві (⌘B, коли фокус тут); не таблиця — null
+    public List<String> selectedTable() {
+        TreeRow r = treeList.getSelectedValue();
+        return r != null && isTable(r) ? r.item().path() : null;
     }
 
     void preview(List<String> path) {

@@ -72,6 +72,17 @@ final class McpTests {
         check(j.size() == 5 && j.get(0).sql().startsWith("insert") && j.get(0).rows() == null && j.get(0).error() == null
                 && j.get(1).connection().equals("hidden") && j.get(1).error() != null, "журнал: кожен запит, новіші першими, і відмови теж");
 
+        Map<String, Object> desc = m.callTool(9, "describe_table", Map.of("connection", "open", "path", List.of("PUBLIC", "ORDERS")));
+        check(!err(desc) && text(desc).startsWith("PUBLIC.ORDERS · H2") && text(desc).contains("Card: not available for this database type")
+                        && text(desc).contains("DDL (built by Ferret from driver metadata") && text(desc).contains("CREATE TABLE PUBLIC.ORDERS (\n    ID INTEGER,"),
+                "describe_table: картка й складений DDL одним викликом:\n" + text(desc));
+        check(err(m.callTool(10, "describe_table", Map.of("connection", "hidden", "path", List.of("PUBLIC", "ORDERS"))))
+                        && err(m.callTool(11, "describe_table", Map.of("connection", "open", "path", List.of()))),
+                "describe_table: закрите підключення і порожній шлях — відмова");
+        String nf = text(m.callTool(12, "describe_table", Map.of("connection", "open", "path", List.of("PUBLIC", "NOPE"))));
+        check(nf.contains("DDL: not available"), "немає такої таблиці — сказано в DDL, а не впало");
+        check(McpAccess.journal(1).get(0).sql().equals("describe_table PUBLIC.NOPE"), "describe_table — у журналі Claude");
+
         for (int i = 0; i < 3000; i++) McpAccess.log(new McpAccess.Entry(java.time.Instant.now(), "t", "c", "select " + i + " -- " + "x".repeat(400), 1, 1, null));
         List<McpAccess.Entry> tail = McpAccess.journal(100_000);
         long size = java.nio.file.Files.size(Store.file("mcp-journal.jsonl"));
@@ -93,7 +104,7 @@ final class McpTests {
         for (String l : out.toString(StandardCharsets.UTF_8).split("\n")) byId.put(String.valueOf(Json.map(Json.parse(l)).get("id")), Json.map(Json.parse(l)));
         check(byId.size() == 5, "на кожен запит — одна відповідь, на сповіщення — жодної (" + byId.keySet() + ")");
         check("2025-06-18".equals(Json.map(byId.get("1").get("result")).get("protocolVersion")), "initialize: та сама версія протоколу");
-        check(Json.list(Json.map(byId.get("a").get("result")).get("tools")).size() == 4, "tools/list: чотири інструменти");
+        check(Json.list(Json.map(byId.get("a").get("result")).get("tools")).size() == 5, "tools/list: пʼять інструментів");
         check(text(Json.map(byId.get("3").get("result"))).contains("COUNT(*)\n3"), "tools/call через протокол");
         check(Long.valueOf(-32601).equals(Json.map(byId.get("4").get("error")).get("code")), "невідомий метод — -32601");
         check(Json.map(byId.get("5").get("result")).isEmpty(), "ping");

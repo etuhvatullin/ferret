@@ -14,8 +14,8 @@ in git. Code comments are in Ukrainian.
 - `update.json` (update URL; for a private channel also a read-only key) is never committed: `release.sh` writes it
   before packaging.
 - Behaviour follows DataGrip; the code is our own.
-- Menus: File · Edit · Query · Connections · Help — each item under the heading that names it (Query holds only
-  run/stop). `Ctrl+,` / `⌘,` is Settings, `Ctrl+Shift+,` — Connections. On macOS "About" and "Settings…" live in
+- Menus: File · Edit · Query · View · Connections · Help — each item under the heading that names it (Query holds only
+  run/stop; View — Show table `⌘B` and Full cell value `⇧↵`). `Ctrl+,` / `⌘,` is Settings, `Ctrl+Shift+,` — Connections. On macOS "About" and "Settings…" live in
   the app menu (`Desktop.setAboutHandler` / `setPreferencesHandler` — Java can't add other items there).
 - **Every user-visible text goes through `I18n`** (see Languages below) — no string literals in the UI.
 - **Text from a database is shown as plain text:** labels via `Ui.label` (HTML is off there), tooltips and the result
@@ -49,9 +49,10 @@ The script headers are the source of truth; in short:
 `Jdbc` — queries, tree, read-only guard, human-readable network errors), SQL text (`SqlText`, `Format`, `Dialect`),
 result values (`Values`), `I18n`, `Updater`, the MCP server for Claude (`Mcp` — `Ferret --mcp`, JSON-RPC over
 stdin/stdout) and its settings (`McpAccess` — rights in `mcp.json`, the key in `passwords.enc`, the query log
-`mcp-journal.jsonl`). `ui/` — Swing: `AppState` (state and `emit` events), `MainWindow`,
+`mcp-journal.jsonl`), the table window's data (`TableInfo` — DDL and the table card, also MCP `describe_table`).
+`ui/` — Swing: `AppState` (state and `emit` events), `MainWindow`,
 `EditorPanel`, `ResultPanel`, `Sidebar`, `TabBar`, `ConnectionsDialog`, `ClaudeDialog` (Claude access and its log),
-`SettingsDialog`, `AboutDialog`, `Help`
+`SettingsDialog`, `AboutDialog`, `TableWindow` (Show table: card + DDL), `ValueWindow` (full cell value), `Help`
 (Help menu: shortcuts built from the menu itself, bug report, links), `SuggestionPopup`, `Splash`, `UpdateBanner`,
 `Theme` / `Ui` ("Nora" colours, drawn icons — never emoji as icons). New non-UI logic goes to `core/` with a test in
 `src/test/java/ferret/tests/`.
@@ -128,5 +129,15 @@ foreground: in a full-screen game `Robot` captures the game and WSLg windows get
 - **A UI test that clicks a button opening a modal dialog must click via `SwingUtilities.invokeLater`** — called
   directly, the click waits until the dialog closes, and the test hangs on it.
 - An exception in a test's `main` doesn't end the process (the UI thread is alive) → `System.exit` in `catch`.
+- **The table window reads metadata only and through `Jdbc.run`** — the same read-only guard as a person's query,
+  no bypass. The guard lets `SHOW CREATE` through as the first two words (it is read-only wherever it exists); every
+  other word is still checked. Card queries are grouped by source and run in parallel, 15 s each (`TableInfo.TIMEOUT_S`).
+- **Trino:** column comments come in JDBC `REMARKS`, the table comment does not — it is `system.metadata.table_comments`
+  (one query in the window; the tree doesn't spend one per schema). Iceberg "data until" is `max(data."<col>".max)` of
+  `$partitions`, the column taken from the partition field (`created_at_month` → `created_at`): the partition number
+  itself (`682`) says nothing. With delete files the row count is only an estimate.
+- **Postgres has no `database.schema.table`**: the tree shows databases as a level, so DDL and card names drop it.
+- **Keys in the editor:** on macOS RSyntaxTextArea binds `Ctrl+B` to "caret backward" (emacs), so Show table is `⌘B`
+  there and `Ctrl+B` only on Windows; `⇧↵` in the editor is its own "insert break" and wins over the menu.
 - In WSL `pkill -f <text>` also kills your own shell if the text is in the command — use `pgrep -x java` and
   `/proc/<pid>/cmdline`.

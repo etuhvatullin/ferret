@@ -91,6 +91,7 @@ public final class MainWindow extends JFrame {
         sidebar.onEditConnection = c -> openConnections(c == null ? null : c.id, null);
         sidebar.onNewConnection = () -> openConnections(null, DBKind.TRINO);
         sidebar.onInsert = editor::insertText;
+        sidebar.onShowTable = path -> { if (state.currentConnection() != null) TableWindow.show(this, state.currentConnection(), path, editor::insertText); };
 
         split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, editor, result);
         split.setBorder(BorderFactory.createEmptyBorder());
@@ -326,7 +327,7 @@ public final class MainWindow extends JFrame {
 
     // MARK: меню
 
-    // Меню: Файл · Редагування · Запит · Підключення · Довідка. На Mac «Про Ferret» і «Налаштування… ⌘,» — у меню
+    // Меню: Файл · Редагування · Запит · Перегляд · Підключення · Довідка. На Mac «Про Ferret» і «Налаштування… ⌘,» — у меню
     // «Ferret» (Java дає туди лише ці системні пункти), а «Вийти» там же від системи.
     JMenuBar menus() {
         JMenuBar bar = new JMenuBar();
@@ -360,6 +361,11 @@ public final class MainWindow extends JFrame {
         q.add(item(I18n.t("main.run"), KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, M), e -> editor.requestRun()));
         q.add(item(I18n.t("main.stop"), KeyStroke.getKeyStroke(KeyEvent.VK_PERIOD, M), e -> state.stop(state.current)));
 
+        JMenu view = new JMenu(I18n.t("main.menu.view"));
+        view.add(item(I18n.t("main.menu.showtable"), KeyStroke.getKeyStroke(KeyEvent.VK_B, M), e -> showTable()));
+        // ⇧↵ у редакторі — новий рядок: його власна прив'язка спрацьовує раніше за меню
+        view.add(item(I18n.t("main.menu.cellvalue"), KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK), e -> result.openCell()));
+
         JMenu conn = new JMenu(I18n.t("main.menu.conn"));
         conn.add(item(I18n.t("main.menu.connections"), KeyStroke.getKeyStroke(KeyEvent.VK_COMMA, M | InputEvent.SHIFT_DOWN_MASK),
                 e -> openConnections(state.currentConnectionID, null)));
@@ -383,11 +389,50 @@ public final class MainWindow extends JFrame {
             help.addSeparator();
             help.add(item(I18n.t("main.menu.about"), null, e -> AboutDialog.show(this)));
         }
-        for (JMenu m : new JMenu[] {file, ed, q, conn, help}) bar.add(m);
+        for (JMenu m : new JMenu[] {file, ed, q, view, conn, help}) bar.add(m);
         return bar;
     }
 
     void openSettings() { SettingsDialog.show(this, state); }
+
+    static boolean focusIn(java.awt.Component c) {
+        java.awt.Component f = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+        return f != null && SwingUtilities.isDescendingFrom(f, c);
+    }
+
+    // ⌘B «Показати таблицю»: фокус у дереві — виділена таблиця; інакше — назва під курсором у редакторі серед таблиць
+    // сервера вкладки (кілька збігів — вибір, повна назва з іншого каталогу — як є: вікно саме скаже, якщо такої немає).
+    void showTable() {
+        List<String> picked = focusIn(sidebar) ? sidebar.selectedTable() : null;
+        if (picked != null && state.currentConnection() != null) { TableWindow.show(this, state.currentConnection(), picked, editor::insertText); return; }
+        Connection c = state.connection(state.current);
+        org.fife.ui.rsyntaxtextarea.RSyntaxTextArea a = editor.area();
+        if (c == null || a == null) return;
+        String title = I18n.t("main.menu.showtable");
+        List<String> name = ferret.core.SqlText.nameAt(a.getText(), a.getCaretPosition());
+        if (name.isEmpty()) { Ask.inform(this, title, I18n.t("table.noName")); return; }
+        List<List<String>> known = state.tables.get(c.id);
+        List<List<String>> hits = known == null ? List.of() : ferret.core.SqlText.tablesNamed(known, name);
+        if (hits.isEmpty() && name.size() == ferret.core.Jdbc.depth(c) - 1) hits = List.of(name);
+        if (hits.isEmpty()) {
+            Ask.inform(this, title, known == null ? I18n.t("side.tablesLoading") : I18n.t("table.noTable", String.join(".", name), Theme.CMD + "R"));
+            return;
+        }
+        if (hits.size() == 1) { TableWindow.show(this, c, hits.get(0), editor::insertText); return; }
+        JPopupMenu m = new JPopupMenu();
+        for (List<String> h : hits) {
+            JMenuItem i = Ui.noHtml(new JMenuItem());   // шлях — назви з бази: лише текстом
+            i.setText(String.join(".", h));
+            i.addActionListener(e -> TableWindow.show(this, c, h, editor::insertText));
+            m.add(i);
+        }
+        try {
+            java.awt.geom.Rectangle2D r = a.modelToView2D(a.getCaretPosition());
+            m.show(a, (int) r.getX(), (int) (r.getY() + r.getHeight()));
+        } catch (Exception e) {
+            m.show(a, 0, 0);
+        }
+    }
 
     void chooseLanguage(String code) {
         state.settings.put("language", code);

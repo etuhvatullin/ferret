@@ -71,6 +71,19 @@ public final class SqlTextTests {
                 "SELECT … INTO і WITH … DELETE — заблоковано");
         check(SqlText.readOnlyViolation("select replace(a, 'x', 'y'), [update], \"delete\", t.update from t -- drop", true) == null,
                 "назви в лапках і [дужках], колонка після крапки, коментар — не запис");
+        check(SqlText.readOnlyViolation("show create table lake.sales.orders", true) == null
+                        && SqlText.readOnlyViolation("SHOW\n  CREATE VIEW v", true) == null,
+                "SHOW CREATE … — дозволено і для баз через драйвер (саме «create» після SHOW не рахується)");
+        check(SqlText.readOnlyViolation("show create table x; drop table y", true) != null
+                        && SqlText.readOnlyViolation("show tables create table y (a int)", true) != null
+                        && SqlText.readOnlyViolation("show created", true) == null
+                        && SqlText.readOnlyViolation("create table t (a int)", true) != null,
+                "після SHOW CREATE решта запиту перевіряється як завжди; CREATE на початку — заблоковано");
+        check(SqlText.readOnlyViolation("show create table t (a int)", true) != null
+                        && SqlText.readOnlyViolation("show create table \"lake\".\"backup\".`t``x`;", true) == null,
+                "SHOW CREATE пропускається лише цілою командою: з хвостом (MS SQL виконав би CREATE після помилки show) — ні");
+        check(SqlText.quoteLiteral("a\\'b", DBKind.POSTGRES).equals("E'a\\\\''b'") && SqlText.quoteLiteral("it's", DBKind.POSTGRES).equals("'it''s'"),
+                "Postgres: рядок з «\\» — E'…' (однаково за будь-якого standard_conforming_strings), без нього — як завжди");
 
         T.section("Лексеми для підсвітки");
         List<SqlText.Token> toks = SqlText.tokenize("SELECT 'a;b', \"Col\" FROM t WHERE x = 42 -- кінець");
@@ -89,6 +102,11 @@ public final class SqlTextTests {
                 "імена в лапках із подвоєнням");
         check(SqlText.quoteLiteral("it's", DBKind.POSTGRES).equals("'it''s'") && SqlText.quoteLiteral("a\\'", DBKind.CLICKHOUSE).equals("'a\\\\'''"),
                 "рядки в лапках, ClickHouse — ще й \\");
+        check(SqlText.quoteIdent("a\\", DBKind.CLICKHOUSE).equals("`a\\\\`") && SqlText.quoteIdent("a\\", DBKind.MYSQL).equals("`a\\`"),
+                "ClickHouse: «\\» у назві подвоєно (інакше закрила б лапку); MySQL у `…` «\\» не екранує");
+        check(SqlText.quoteIdent("My`Set", DBKind.BIGQUERY).equals("`My\\`Set`") && SqlText.quoteLiteral("it's", DBKind.BIGQUERY).equals("'it\\'s'")
+                        && SqlText.qualifiedName(DBKind.BIGQUERY, List.of("Sales", "orders")).equals("`Sales`.orders"),
+                "BigQuery: імена у `…`, лапки екрановано «\\», а не подвоєнням");
         check(SqlText.qualifiedName(DBKind.TRINO, List.of("lake", "sales", "orders")).equals("lake.sales.orders"), "прості імена — без лапок");
         check(SqlText.qualifiedName(DBKind.TRINO, List.of("lake", "My Schema", "t")).equals("lake.\"My Schema\".t"), "імʼя з пробілом — у лапках");
         check(SqlText.selectAllSQL(DBKind.CLICKHOUSE, List.of("aggregator", "abc_12_weeks")).equals("select * from aggregator.abc_12_weeks limit 1000")
@@ -106,6 +124,20 @@ public final class SqlTextTests {
                         && SqlText.plainIdentifier("EMP", DBKind.ORACLE) && !SqlText.plainIdentifier("emp", DBKind.ORACLE),
                 "без лапок: MS SQL — будь-який регістр, Trino — малими, Oracle — великими");
         check(SqlText.schemaDepth(DBKind.TRINO) == 4 && SqlText.schemaDepth(DBKind.CLICKHOUSE) == 3, "глибина дерева: Trino — 4, решта — 3");
+
+        T.section("Імʼя під курсором (⌘B)");
+        String q = "select * from lake.sales.order_items o join \"My Db\".t2 on 1=1";
+        check(SqlText.nameAt(q, q.indexOf("sales") + 2).equals(List.of("lake", "sales", "order_items"))
+                        && SqlText.nameAt(q, q.indexOf("order_items")).equals(List.of("lake", "sales", "order_items"))
+                        && SqlText.nameAt("select  1", 7).isEmpty(),
+                "курсор усередині, на початку імені; на пробілі — нічого");
+        check(SqlText.nameAt("from \"a\"\"b\".`c`", 8).equals(List.of("a\"b", "c")), "лапки знято, подвоєна лапка — частина імені");
+        List<List<String>> named = List.of(List.of("lake", "sales", "orders"), List.of("lake", "web", "orders"), List.of("lake", "sales", "order_items"));
+        check(SqlText.tablesNamed(named, List.of("orders")).size() == 2
+                        && SqlText.tablesNamed(named, List.of("SALES", "Orders")).equals(List.of(List.of("lake", "sales", "orders")))
+                        && SqlText.tablesNamed(List.of(List.of("sales", "orders")), List.of("lake", "sales", "orders")).size() == 1
+                        && SqlText.tablesNamed(named, List.of("nope")).isEmpty(),
+                "таблиці за імʼям: коротке — усі збіги, з рівнями — точний, зайвий каталог спереду не заважає");
 
         T.section("Підказка таблиць після FROM / JOIN");
         String sqlFrom = "select *\nfrom  lake.sa";

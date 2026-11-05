@@ -12,6 +12,7 @@ public final class All {
         CoreTests.run();
         PlainTextTests.run();
         SqlTextTests.run();
+        TableInfoTests.run();
         FormatTests.run();
         DialectTests.run();
         DriversTests.run();

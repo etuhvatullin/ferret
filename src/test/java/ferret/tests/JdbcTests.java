@@ -7,6 +7,7 @@ import ferret.core.Model.DBError;
 import ferret.core.Model.DBKind;
 import ferret.core.Model.QueryResult;
 import ferret.core.SchemaItem;
+import ferret.core.TableInfo;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -95,6 +96,39 @@ final class JdbcTests {
                 "без LIMIT — перші 500 рядків; «Показати всі» — усі 600");
         Jdbc.forget(h2.id);
         check(Jdbc.run(h2, "select 1", "", 10, null).rows.size() == 1, "після «забути» зʼєднання відкривається знову");
+        T.section("Таблиця: коментарі й DDL, складений з опису драйвера (H2)");
+        Jdbc.run(w, "create table clients(id int primary key, name varchar(50))", "", 10, null);
+        Jdbc.run(w, "create table orders(id int not null primary key, client_id int references clients(id), title varchar(200) default 'без назви',"
+                + " price decimal(18, 2) not null, note varchar)", "", 10, null);
+        Jdbc.run(w, "create index orders_title on orders(title, price)", "", 10, null);
+        Jdbc.run(w, "comment on table orders is 'Замовлення ''тест'''", "", 10, null);
+        Jdbc.run(w, "comment on column orders.title is 'Назва'", "", 10, null);
+        List<SchemaItem> oc = Jdbc.children(h2, "", List.of("PUBLIC", "ORDERS"));
+        List<SchemaItem> tl = Jdbc.children(h2, "", List.of("PUBLIC"));
+        check(oc.stream().anyMatch(i -> i.name().equals("TITLE") && "Назва".equals(i.comment()))
+                        && tl.stream().anyMatch(i -> i.name().equals("ORDERS") && "Замовлення 'тест'".equals(i.comment()))
+                        && oc.stream().anyMatch(i -> i.name().equals("ID") && i.comment() == null),
+                "дерево: коментарі колонок і таблиці з метаданих драйвера, без коментаря — null");
+        TableInfo.Ddl d = TableInfo.ddl(h2, "", List.of("PUBLIC", "ORDERS"), new TableInfo.Stop());
+        check(d.built() && d.kind().equals("table") && d.text().contains("REFERENCES PUBLIC.CLIENTS (ID)") && d.text().contains("CREATE INDEX ORDERS_TITLE")
+                        && d.text().contains("TITLE CHARACTER VARYING(200) DEFAULT ") && d.text().contains("PRICE DECIMAL(18, 2) NOT NULL") && d.text().contains("NOTE CHARACTER VARYING,"),
+                "DDL складено з опису драйвера (підключення «лише читання»):\n" + d.text());
+        Connection fresh = h2.copy();
+        fresh.id = java.util.UUID.randomUUID();
+        fresh.readOnly = false;
+        fresh.jdbcURL = "jdbc:h2:mem:ferret_fresh;DB_CLOSE_DELAY=-1";
+        Jdbc.run(fresh, "create table clients(id int primary key)", "", 10, null);
+        for (String st : d.text().split(";\n?")) if (!st.isBlank()) Jdbc.run(fresh, st, "", 10, null);
+        java.util.function.Function<List<SchemaItem>, List<String>> shape = l -> l.stream().map(i -> i.name() + " " + i.detail() + " " + i.comment()).toList();
+        TableInfo.Meta again = Jdbc.tableMeta(fresh, "", List.of("PUBLIC", "ORDERS"));
+        check(shape.apply(Jdbc.children(fresh, "", List.of("PUBLIC", "ORDERS"))).equals(shape.apply(oc)) && "Замовлення 'тест'".equals(again.comment())
+                        && again.pk() != null && again.pk().columns().equals(List.of("ID")) && again.fks().size() == 1
+                        && again.columns().stream().anyMatch(c -> c.name().equals("PRICE") && !c.nullable()),
+                "той самий DDL на порожній базі: ті самі колонки, типи й коментарі, ключ, зовнішній ключ, NOT NULL");
+        List<TableInfo.Item> hc = TableInfo.card(h2, "", List.of("PUBLIC", "ORDERS"), new TableInfo.Stop());
+        check(hc.stream().filter(i -> i.fact() != TableInfo.Fact.COMMENT).allMatch(i -> i.mark() == TableInfo.Mark.UNKNOWN && TableInfo.NOTE_NO_CARD.equals(i.note())),
+                "H2: картки немає — так і сказано");
+        Jdbc.forget(fresh.id);
         trino();
         server("FERRET_CH_URL", DBKind.CLICKHOUSE, "create table t (a UInt32, b String, c Array(Nullable(UInt64))) engine = Memory",
                 "insert into t select number + 1, concat('рядок ', toString(number + 1)), [number + 210, NULL] from numbers(5)");
@@ -152,6 +186,37 @@ final class JdbcTests {
             QueryResult cnt = Jdbc.run(c, "select count(*) from t", pw[0], 10, null);
             check("5".equals(cnt.rows.get(0)[0]), "Postgres: запис повз запобіжник не пройшов (" + (srv.length() > 70 ? srv.substring(0, 70) : srv) + ")");
         }
+        // вікно «Таблиця» наживо: DDL і картка — лише читання, без жодної помилки в картці
+        List<String> up = tPath == null ? List.of() : tPath.subList(0, tPath.size() - 1);
+        if (k == DBKind.POSTGRES && tPath != null) {
+            Jdbc.run(w, "create or replace view tv as select a, b from t where a > 1", pw[0], 10, null);
+            Jdbc.run(w, "comment on table t is 'Тестова'", pw[0], 10, null);
+            Jdbc.run(w, "comment on column t.b is 'Текст'", pw[0], 10, null);
+            Jdbc.run(w, "analyze t", pw[0], 10, null);
+            List<String> vPath = new java.util.ArrayList<>(up);
+            vPath.add("tv");
+            TableInfo.Ddl dv = TableInfo.ddl(c, pw[0], vPath, new TableInfo.Stop());
+            TableInfo.Ddl dt = TableInfo.ddl(c, pw[0], tPath, new TableInfo.Stop());
+            List<TableInfo.Item> card = TableInfo.card(c, pw[0], tPath, new TableInfo.Stop());
+            check(!dv.built() && dv.kind().equals("view") && dv.text().startsWith("CREATE VIEW " + ferret.core.SqlText.qualifiedName(k, vPath.subList(vPath.size() - 2, vPath.size())) + " AS")
+                            && dv.text().contains("WHERE"), "Postgres: view — текстом бази (pg_get_viewdef):\n" + dv.text());
+            check(dt.built() && dt.text().contains("COMMENT ON COLUMN " + ferret.core.SqlText.qualifiedName(k, tPath.subList(tPath.size() - 2, tPath.size())) + ".b IS 'Текст';"),
+                    "Postgres: таблиця — складена з опису драйвера:\n" + dt.text());
+            check(card.stream().noneMatch(i -> i.mark() == TableInfo.Mark.FAILED || i.mark() == TableInfo.Mark.TIMEOUT)
+                            && card.stream().anyMatch(i -> i.fact() == TableInfo.Fact.COMMENT && "Тестова".equals(i.value()))
+                            && card.stream().anyMatch(i -> i.fact() == TableInfo.Fact.ROWS && i.mark() == TableInfo.Mark.ESTIMATE && "5".equals(i.value())),
+                    "Postgres: картка — " + card.stream().map(i -> i.fact() + "=" + i.mark() + ":" + i.value()).toList());
+            Jdbc.run(w, "drop view tv", pw[0], 10, null);
+        }
+        if (k == DBKind.CLICKHOUSE && tPath != null) {
+            String own = Jdbc.run(c, "SHOW CREATE TABLE " + ferret.core.SqlText.qualifiedName(k, tPath), pw[0], 10, null).rows.get(0)[0];
+            TableInfo.Ddl dt = TableInfo.ddl(c, pw[0], tPath, new TableInfo.Stop());
+            List<TableInfo.Item> card = TableInfo.card(c, pw[0], tPath, new TableInfo.Stop());
+            check(!dt.built() && dt.text().equals(own.strip()), "ClickHouse: DDL — той самий текст, що SHOW CREATE TABLE:\n" + dt.text());
+            check(card.stream().noneMatch(i -> i.mark() == TableInfo.Mark.FAILED || i.mark() == TableInfo.Mark.TIMEOUT)
+                            && card.stream().anyMatch(i -> i.fact() == TableInfo.Fact.ROWS && "5".equals(i.value())),
+                    "ClickHouse: картка — " + card.stream().map(i -> i.fact() + "=" + i.mark() + ":" + i.value()).toList());
+        }
         Jdbc.run(w, "drop table t", pw[0], 10, null);
     }
 
@@ -186,5 +251,17 @@ final class JdbcTests {
         String guard = "";
         try { Jdbc.run(t, "create table x (a int)", pw, 10, null); } catch (DBError e) { guard = e.getMessage(); }
         check(guard.contains("лише читання"), "Trino: запис не відправляється");
+        // таблиця для вікна «Таблиця» — FERRET_TRINO_TABLE (каталог.схема.таблиця), інакше перша з каталогу
+        String pick = System.getenv("FERRET_TRINO_TABLE");
+        List<String> oi = pick != null && !pick.isBlank() ? List.of(pick.split("\\.")) : all.get(0);
+        String q = ferret.core.SqlText.qualifiedName(DBKind.TRINO, oi);
+        String own = Jdbc.run(t, "SHOW CREATE TABLE " + q, pw, 10, null).rows.get(0)[0];
+        long t1 = System.nanoTime();
+        TableInfo.Ddl d = TableInfo.ddl(t, pw, oi, new TableInfo.Stop());
+        List<TableInfo.Item> card = TableInfo.card(t, pw, oi, new TableInfo.Stop());
+        long ms = (System.nanoTime() - t1) / 1_000_000;
+        check(!d.built() && d.text().equals(own.strip()), "Trino: DDL " + q + " — той самий текст, що SHOW CREATE TABLE (" + d.text().length() + " знаків); SHOW CREATE — з «лише читання»");
+        check(card.stream().noneMatch(i -> i.mark() == TableInfo.Mark.FAILED || i.mark() == TableInfo.Mark.TIMEOUT),
+                "Trino: картка " + q + " за " + ms + " мс — " + card.stream().map(i -> i.fact() + "=" + i.mark() + ":" + i.value() + (i.note() == null ? "" : "(" + i.note() + ")")).toList());
     }
 }

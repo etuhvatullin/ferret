@@ -409,11 +409,12 @@ public final class Jdbc {
                 for (String n : ns) items.add(item(path, n, null));
             } else if (lv == shape.size()) {
                 try (ResultSet rs = md.getTables(cat, escape(md, sch), "%", null)) {
-                    while (rs.next()) if (tableType(rs.getString("TABLE_TYPE"))) items.add(item(path, rs.getString("TABLE_NAME"), null));
+                    while (rs.next()) if (tableType(rs.getString("TABLE_TYPE")))
+                        items.add(item(path, rs.getString("TABLE_NAME"), null, remarks(rs)));
                 }
             } else if (lv == shape.size() + 1) {
                 try (ResultSet rs = md.getColumns(cat, escape(md, sch), escape(md, path.get(lv - 1)), "%")) {
-                    while (rs.next()) items.add(item(path, rs.getString("COLUMN_NAME"), rs.getString("TYPE_NAME")));
+                    while (rs.next()) items.add(item(path, rs.getString("COLUMN_NAME"), rs.getString("TYPE_NAME"), remarks(rs)));
                 }
             }
             return items;
@@ -425,10 +426,105 @@ public final class Jdbc {
         }
     }
 
-    static SchemaItem item(List<String> path, String name, String detail) {
+    static SchemaItem item(List<String> path, String name, String detail) { return item(path, name, detail, null); }
+
+    static SchemaItem item(List<String> path, String name, String detail, String comment) {
         List<String> p = new ArrayList<>(path);
         p.add(name);
-        return new SchemaItem(p, detail);
+        return new SchemaItem(p, detail, comment);
+    }
+
+    // Коментар з метаданих драйвера (REMARKS); порожній — null. Trino коментар таблиці тут не віддає (лише колонок):
+    // він є у вікні «Таблиця» окремим запитом, а дерево на кожну схему зайвого запиту не робить.
+    static String remarks(ResultSet rs) {
+        try {
+            String r = rs.getString("REMARKS");
+            return r == null || r.isBlank() ? null : r.strip();
+        } catch (Throwable noColumn) {
+            return null;
+        }
+    }
+
+    // Опис таблиці від драйвера — для DDL, який складає Ferret там, де база не віддає свій (Postgres, MS SQL, решта):
+    // тип, колонки, первинний і зовнішні ключі, індекси, коментарі. Кожен шматок, якого драйвер не вміє, — порожній.
+    public static TableInfo.Meta tableMeta(Connection c0, String password, List<String> path) throws DBError {
+        Connection c = c0.copy();
+        c.readOnly = true;
+        String pw = password(c, password);
+        Conf conf = conf(c, pw);
+        java.sql.Connection x = null;
+        boolean bad = false;
+        try {
+            x = borrow(conf);
+            DatabaseMetaData md = x.getMetaData();
+            List<String> shape = shape(conf, x);
+            String cat = shape.contains("catalog") ? level(shape, path, "catalog") : x.getCatalog();
+            String sch = level(shape, path, "schema");
+            String t = path.get(path.size() - 1);
+            String type = null, comment = null;
+            boolean found = false;
+            try (ResultSet rs = md.getTables(cat, escape(md, sch), escape(md, t), null)) {
+                while (!found && rs.next()) if (t.equals(rs.getString("TABLE_NAME"))) {
+                    found = true;
+                    type = rs.getString("TABLE_TYPE");
+                    comment = remarks(rs);
+                }
+            }
+            if (!found) throw new DBError(I18n.t("table.notfound", String.join(".", path)));
+            if (type == null) type = "TABLE";   // драйвер без типу — як і в дереві (tableType)
+            List<TableInfo.Column> cols = new ArrayList<>();
+            try (ResultSet rs = md.getColumns(cat, escape(md, sch), escape(md, t), "%")) {
+                while (rs.next()) {
+                    if (!t.equals(rs.getString("TABLE_NAME"))) continue;   // драйвер, що не зважає на екранування «_»
+                    cols.add(new TableInfo.Column(rs.getString("COLUMN_NAME"), rs.getString("TYPE_NAME"), rs.getInt("DATA_TYPE"),
+                            rs.getInt("COLUMN_SIZE"), rs.getInt("DECIMAL_DIGITS"), rs.getInt("NULLABLE") != DatabaseMetaData.columnNoNulls,
+                            rs.getString("COLUMN_DEF"), remarks(rs)));
+                }
+            }
+            TableInfo.Key pk = null;
+            try (ResultSet rs = md.getPrimaryKeys(cat, sch, t)) {
+                java.util.TreeMap<Integer, String> keyCols = new java.util.TreeMap<>();
+                String name = null;
+                while (rs.next()) { keyCols.put(rs.getInt("KEY_SEQ"), rs.getString("COLUMN_NAME")); name = rs.getString("PK_NAME"); }
+                if (!keyCols.isEmpty()) pk = new TableInfo.Key(name, new ArrayList<>(keyCols.values()));
+            } catch (SQLFeatureNotSupportedException | AbstractMethodError ignored) { }
+            List<TableInfo.ForeignKey> fks = new ArrayList<>();
+            try (ResultSet rs = md.getImportedKeys(cat, sch, t)) {
+                record Part(int seq, String col, String refCol) { }
+                Map<List<String>, List<Part>> parts = new java.util.LinkedHashMap<>();   // [імʼя ключа, шлях таблиці…] → колонки
+                while (rs.next()) {
+                    List<String> k = new ArrayList<>();
+                    k.add(rs.getString("FK_NAME"));
+                    if (shape.contains("catalog")) k.add(rs.getString("PKTABLE_CAT"));
+                    if (shape.contains("schema")) k.add(rs.getString("PKTABLE_SCHEM"));
+                    k.add(rs.getString("PKTABLE_NAME"));
+                    parts.computeIfAbsent(k, z -> new ArrayList<>()).add(new Part(rs.getInt("KEY_SEQ"), rs.getString("FKCOLUMN_NAME"), rs.getString("PKCOLUMN_NAME")));
+                }
+                parts.forEach((k, ps) -> {
+                    ps.sort(java.util.Comparator.comparingInt(Part::seq));
+                    List<String> ref = k.subList(1, k.size()).stream().filter(java.util.Objects::nonNull).toList();   // рівня без імені драйвер не дав
+                    fks.add(new TableInfo.ForeignKey(k.get(0), ps.stream().map(Part::col).toList(), ref, ps.stream().map(Part::refCol).toList()));
+                });
+            } catch (SQLFeatureNotSupportedException | AbstractMethodError ignored) { }
+            List<TableInfo.Index> idx = new ArrayList<>();
+            try (ResultSet rs = md.getIndexInfo(cat, sch, t, false, true)) {
+                Map<String, java.util.TreeMap<Integer, String>> cols2 = new java.util.LinkedHashMap<>();
+                Map<String, Boolean> unique = new java.util.HashMap<>();
+                while (rs.next()) {
+                    String n = rs.getString("INDEX_NAME"), col = rs.getString("COLUMN_NAME");
+                    if (n == null || col == null || rs.getShort("TYPE") == DatabaseMetaData.tableIndexStatistic) continue;
+                    cols2.computeIfAbsent(n, z -> new java.util.TreeMap<>()).put((int) rs.getShort("ORDINAL_POSITION"), col);
+                    unique.put(n, !rs.getBoolean("NON_UNIQUE"));
+                }
+                cols2.forEach((n, m) -> idx.add(new TableInfo.Index(n, unique.get(n), new ArrayList<>(m.values()))));
+            } catch (SQLFeatureNotSupportedException | AbstractMethodError ignored) { }
+            return new TableInfo.Meta(type, comment, cols, pk, fks, idx);
+        } catch (Throwable e) {
+            bad = broken(e);
+            throw error(e, pw, null);
+        } finally {
+            release(conf, x, bad);
+        }
     }
 
     // Усі таблиці поточної бази шляхами за рівнями — для підказки після FROM і пошуку. До 50 000. Перелік усього

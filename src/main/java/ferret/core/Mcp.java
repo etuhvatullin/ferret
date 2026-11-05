@@ -40,13 +40,14 @@ public final class Mcp {
     static final int ROWS_DEFAULT = 100, ROWS_MAX = 1000, CELL = 500, TEXT_MAX = 60_000, ITEMS_MAX = 2000, FOUND_MAX = 200;
 
     static final String INSTRUCTIONS = "Ferret runs SQL against the user's databases with the user's own saved credentials. "
-            + "Start with list_connections, find tables with find_tables or list_objects, then run_query with a small max_rows. "
+            + "Start with list_connections, find tables with find_tables or list_objects, look at an unfamiliar table with describe_table "
+            + "(DDL, freshness, size — from metadata), then run_query with a small max_rows. "
             + "Write queries in the SQL dialect of the connection's database type.";
 
     private final OutputStream out;
     private final String key, version;
     private volatile String client = "";
-    private final Map<String, Jdbc.Running> running = new ConcurrentHashMap<>();
+    private final Map<String, Runnable> running = new ConcurrentHashMap<>();   // id виклику → скасування (запит чи describe_table)
     private final ExecutorService calls = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r, "ferret-mcp");
         t.setDaemon(true);
@@ -98,8 +99,8 @@ public final class Mcp {
         if (method == null) return;   // відповідь клієнта: ми йому запитів не шлемо
         if (id == null) {             // сповіщення — без відповіді
             if (method.equals("notifications/cancelled")) {
-                Jdbc.Running r = running.get(String.valueOf(Json.map(m.get("params")).get("requestId")));
-                if (r != null) r.cancel();
+                Runnable cancel = running.get(String.valueOf(Json.map(m.get("params")).get("requestId")));
+                if (cancel != null) cancel.run();
             }
             return;
         }
@@ -138,6 +139,15 @@ public final class Mcp {
                     Map.of("connection", prop("string", "Connection name (or id) from list_connections"),
                             "words", prop("string", "Words separated by spaces, e.g. \"order item\"")),
                     List.of("connection", "words")),
+            tool("describe_table", "A table's DDL and its card in one call: data until (the max of its date column from file statistics, "
+                    + "or the last partition), last write, rows, size, partitions, comment. Everything comes from metadata — the table itself "
+                    + "is not scanned, and row counts the database only estimates are marked as estimates. The DDL comes whole up to "
+                    + TEXT_MAX + " characters (a run_query cell is cut at " + CELL + "). Databases without their own DDL command (Postgres and MS SQL tables and others) "
+                    + "get a DDL built by Ferret from driver metadata, without CHECK constraints, partitions and triggers.",
+                    Map.of("connection", prop("string", "Connection name (or id) from list_connections"),
+                            "path", Map.of("type", "array", "items", Map.of("type", "string"),
+                                    "description", "Path to the table as in list_objects, e.g. [\"lake\", \"sales\", \"orders\"]")),
+                    List.of("connection", "path")),
             tool("run_query", "Run one SQL statement through the user's connection. Rows come back as tab-separated text: "
                     + "a summary line, column types, column names, then the rows (NULL for nulls, values longer than " + CELL
                     + " characters are cut). With read access only reading statements are allowed.",
@@ -171,6 +181,7 @@ public final class Mcp {
                 case "list_objects" -> objects(a);
                 case "find_tables" -> find(a);
                 case "run_query" -> query(id, a);
+                case "describe_table" -> describe(id, a);
                 default -> throw new Refusal("Unknown tool: " + tool);
             };
             return content(text, false);
@@ -292,7 +303,7 @@ public final class Mcp {
             boolean mine = g.right().equals(McpAccess.READ) && !g.c().readOnly;   // обмеження від прав Claude, не від підключення
             if (g.right().equals(McpAccess.READ)) run.readOnly = true;
             Jdbc.Running r = new Jdbc.Running();
-            running.put(String.valueOf(id), r);
+            running.put(String.valueOf(id), r::cancel);
             QueryResult q;
             try {
                 q = Jdbc.run(run, sql, null, limit, r);
@@ -310,6 +321,78 @@ public final class Mcp {
             McpAccess.log(new McpAccess.Entry(Instant.now(), client, name, cut(sql, 10_000), null, (System.nanoTime() - t0) / 1_000_000, e.getMessage()));
             throw e;
         }
+    }
+
+    // Картка й DDL таблиці (вікно «Таблиця» у Ferret — та сама core/TableInfo): обидва паралельно, збій одного не ховає іншого
+    String describe(Object id, Map<String, Object> a) throws Refusal, DBError {
+        long t0 = System.nanoTime();
+        List<String> path = Json.strings(a.get("path"));
+        String name = Json.str(a.get("connection"), ""), what = "describe_table " + String.join(".", path);
+        TableInfo.Stop stop = new TableInfo.Stop();
+        try {
+            Granted g = pick(a);
+            name = g.c().name;
+            if (path.isEmpty()) throw new Refusal("Pass the path to a table, e.g. [\"sales\", \"orders\"] — list_objects shows the levels.");
+            running.put(String.valueOf(id), stop::cancel);
+            String text;
+            try {
+                var card = java.util.concurrent.CompletableFuture.supplyAsync(() -> TableInfo.card(g.c(), null, path, stop), calls);
+                String ddl;
+                try {
+                    TableInfo.Ddl d = TableInfo.ddl(g.c(), null, path, stop);
+                    ddl = (d.built() ? "DDL (built by Ferret from driver metadata — no CHECK constraints, partitions or triggers):\n"
+                            : "DDL (" + d.kind() + ", from the database):\n") + d.text();
+                } catch (DBError | RuntimeException e) {
+                    ddl = "DDL: not available — " + (e instanceof DBError ? e.getMessage() : e.toString());
+                }
+                text = String.join(".", path) + " · " + g.c().kind.title + "\n" + cardText(card.join()) + "\n\n" + ddl;
+            } finally {
+                running.remove(String.valueOf(id));
+            }
+            McpAccess.log(new McpAccess.Entry(Instant.now(), client, name, what, null, (System.nanoTime() - t0) / 1_000_000, null));
+            return cut(text, TEXT_MAX);
+        } catch (Refusal e) {
+            McpAccess.log(new McpAccess.Entry(Instant.now(), client, name, what, null, (System.nanoTime() - t0) / 1_000_000, e.getMessage()));
+            throw e;
+        }
+    }
+
+    static String cardText(List<TableInfo.Item> items) {
+        StringBuilder b = new StringBuilder();
+        if (items.stream().allMatch(i -> TableInfo.NOTE_NO_CARD.equals(i.note()) || i.fact() == TableInfo.Fact.COMMENT && i.mark() == TableInfo.Mark.UNKNOWN))
+            return "Card: not available for this database type — only the DDL below.";
+        for (TableInfo.Item i : items) {
+            String label = switch (i.fact()) {
+                case DATA_UNTIL -> "Data until";
+                case LAST_WRITE -> "Last write";
+                case ROWS -> "Rows";
+                case SIZE -> "Size";
+                case PARTITIONS -> "Partitions";
+                case COMMENT -> "Comment";
+            };
+            if (i.fact() == TableInfo.Fact.COMMENT && i.mark() == TableInfo.Mark.UNKNOWN) continue;
+            b.append(label).append(": ").append(switch (i.mark()) {
+                case UNKNOWN -> TableInfo.NOTE_NO_CARD.equals(i.note()) ? "no card for this database type"
+                        : TableInfo.NOTE_SINCE_RESTART.equals(i.note()) ? "no writes since the server restarted" : "not tracked by the database";
+                case NONE -> i.fact() == TableInfo.Fact.PARTITIONS ? "not partitioned" : "none";
+                case FAILED -> "failed — " + i.note();
+                case TIMEOUT -> "no answer in " + i.note() + " s";
+                default -> i.value() + factNote(i);
+            }).append('\n');
+        }
+        return b.toString().strip();
+    }
+
+    static String factNote(TableInfo.Item i) {
+        String n = i.note();
+        if (i.fact() == TableInfo.Fact.SIZE) return " bytes";
+        if (TableInfo.NOTE_DELETES.equals(n)) return " (estimate: the table has delete files)";
+        if (TableInfo.NOTE_PARTITION.equals(n)) return " (the last partition)";
+        if (TableInfo.NOTE_SINCE_RESTART.equals(n)) return " (the database remembers writes only since its restart)";
+        if (i.fact() == TableInfo.Fact.ROWS) return i.mark() == TableInfo.Mark.ESTIMATE ? " (the database's estimate)" : " (exact, from metadata)";
+        if (i.fact() == TableInfo.Fact.DATA_UNTIL && n != null) return " (max of " + n + " from file statistics)";
+        if (i.fact() == TableInfo.Fact.PARTITIONS && n != null) return " (" + n + ")";
+        return "";
     }
 
     static String format(QueryResult q, int limit) {

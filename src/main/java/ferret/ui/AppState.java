@@ -571,7 +571,7 @@ public final class AppState {
             List<SchemaItem> items = new ArrayList<>();
             for (Object o : Json.list(e.getValue())) {
                 Map<String, Object> m = Json.map(o);
-                items.add(new SchemaItem(Json.strings(m.get("path")), Json.str(m.get("detail"))));
+                items.add(new SchemaItem(Json.strings(m.get("path")), Json.str(m.get("detail")), Json.str(m.get("comment"))));
             }
             tree.put(p + e.getKey(), items);
         }
@@ -608,6 +608,7 @@ public final class AppState {
                 Map<String, Object> m = new LinkedHashMap<>();
                 m.put("path", new ArrayList<Object>(i.path()));
                 if (i.detail() != null) m.put("detail", i.detail());
+                if (i.comment() != null) m.put("comment", i.comment());   // необовʼязкове: старі кеші й Swift-Ferret його не мають
                 items.add(m);
             }
             nodes.put(e.getKey().substring(p.length()), items);

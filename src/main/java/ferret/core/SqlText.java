@@ -338,7 +338,8 @@ public final class SqlText {
         if (first.equals("explain") && words.contains("analyze")) {
             return I18n.t("sql.readonly.explainanalyze");
         }
-        String w = strict ? writeWord(body) : null;
+        // ціла команда «SHOW CREATE <вид> <імʼя>» лише читає (Trino, ClickHouse, MySQL) — її «create» не рахується
+        String w = strict && !SHOW_CREATE.matcher(body).matches() ? writeWord(body) : null;
         if (w != null) {
             return I18n.t("sql.readonly.word", w.toUpperCase(Locale.ROOT));
         }
@@ -346,6 +347,12 @@ public final class SqlText {
     }
 
     public static String readOnlyViolation(String sql) { return readOnlyViolation(sql, false); }
+
+    // Лише ціла команда, без хвоста: у MS SQL «show create table t (a int)» — виклик процедури show, після помилки якого
+    // пакет іде далі й виконує CREATE TABLE. Імʼя — частинами через крапку, прості чи в лапках.
+    private static final String IDENT = "(?:\"(?:[^\"]|\"\")*\"|`(?:[^`]|``)*`|[\\p{L}\\p{N}_$@#]+)";
+    private static final Pattern SHOW_CREATE = Pattern.compile("show\\s+create\\s+(?:materialized\\s+view|view|table|dictionary)\\s+"
+            + IDENT + "(?:\\s*\\.\\s*" + IDENT + ")*\\s*;?", Pattern.CASE_INSENSITIVE);
 
     // Слова запису будь-де в запиті (поза лапками, коментарями, [дужками] T-SQL і не після крапки — «t.update» це колонка).
     public static final Set<String> WRITE_WORDS = Set.of(
@@ -376,15 +383,22 @@ public final class SqlText {
     // MARK: лапки й імена
 
     private static boolean backtickKind(DBKind kind) {
-        return kind == DBKind.CLICKHOUSE || kind == DBKind.MYSQL || kind == DBKind.MARIADB;
+        return kind == DBKind.CLICKHOUSE || kind == DBKind.MYSQL || kind == DBKind.MARIADB || kind == DBKind.BIGQUERY;
     }
 
-    // Імена й рядки в лапки — для службових запитів дерева схем (ніякої склейки «як є»).
+    // Імена й рядки в лапки — для службових запитів дерева схем і картки таблиці (ніякої склейки «як є»). ClickHouse і
+    // BigQuery читають «\» у лапках як початок екранування — без подвоєння імʼя на «\» закрило б лапку раніше.
+    // BigQuery не знає подвоєних лапок — лише «\`» і «\'».
     public static String quoteIdent(String name, DBKind kind) {
+        if (kind == DBKind.BIGQUERY) return "`" + name.replace("\\", "\\\\").replace("`", "\\`") + "`";
+        if (kind == DBKind.CLICKHOUSE) return "`" + name.replace("\\", "\\\\").replace("`", "``") + "`";
         return backtickKind(kind) ? "`" + name.replace("`", "``") + "`" : "\"" + name.replace("\"", "\"\"") + "\"";
     }
 
     public static String quoteLiteral(String s, DBKind kind) {
+        if (kind == DBKind.BIGQUERY) return "'" + s.replace("\\", "\\\\").replace("'", "\\'") + "'";
+        // Postgres з standard_conforming_strings=off читає «\» у '…' як екранування: рядок з «\» — E'…', де воно однакове завжди
+        if (kind == DBKind.POSTGRES && s.contains("\\")) return "E'" + s.replace("\\", "\\\\").replace("'", "''") + "'";
         String v = s.replace("'", "''");
         if (backtickKind(kind)) v = v.replace("\\", "\\\\");
         return "'" + v + "'";
@@ -448,6 +462,44 @@ public final class SqlText {
         int i = cursor;
         while (i > 0 && identifierChar(text.charAt(i - 1))) i--;
         return new Range(i, cursor - i);
+    }
+
+    // Імʼя під курсором з обох боків — частинами, без лапок (⌘B «Показати таблицю»): «lake.sa|les."My t"» →
+    // [lake, sales, My t]. Межі імені — ті самі знаки, що й у підказці (пробіл у лапках імʼя розриває).
+    public static List<String> nameAt(String text, int cursor) {
+        int a = Math.max(0, Math.min(cursor, text.length())), b = a;
+        while (a > 0 && identifierChar(text.charAt(a - 1))) a--;
+        while (b < text.length() && identifierChar(text.charAt(b))) b++;
+        List<String> parts = new ArrayList<>();
+        StringBuilder cur = new StringBuilder();
+        char q = 0;
+        for (int i = a; i < b; i++) {
+            char c = text.charAt(i);
+            if (q != 0) {
+                if (c != q) cur.append(c);
+                else if (i + 1 < b && text.charAt(i + 1) == q) { cur.append(c); i++; }   // подвоєна лапка всередині імені
+                else q = 0;
+            } else if (c == '"' || c == '`') q = c;
+            else if (c == '.') { parts.add(cur.toString()); cur.setLength(0); }
+            else cur.append(c);
+        }
+        parts.add(cur.toString());
+        parts.removeIf(String::isEmpty);
+        return parts;
+    }
+
+    // Таблиці, чий шлях закінчується цим імʼям (без регістру): «orders» → lake.sales.orders і lake.web.orders. Зайві
+    // рівні спереду імені не заважають: «lake.sales.orders» знаходить і [sales, orders] у підключенні без рівня каталогу.
+    public static List<List<String>> tablesNamed(List<List<String>> paths, List<String> name) {
+        List<List<String>> out = new ArrayList<>();
+        if (name.isEmpty()) return out;
+        for (List<String> p : paths) {
+            int k = Math.min(p.size(), name.size());
+            boolean same = k > 0;
+            for (int i = 1; i <= k && same; i++) same = p.get(p.size() - i).equalsIgnoreCase(name.get(name.size() - i));
+            if (same) out.add(p);
+        }
+        return out;
     }
 
     // Курсор там, де пишуть таблицю: перед шматком імені (через пробіл) стоїть FROM або JOIN. Повертає діапазон шматка.

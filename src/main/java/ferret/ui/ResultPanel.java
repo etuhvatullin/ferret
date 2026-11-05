@@ -353,6 +353,13 @@ public final class ResultPanel extends JPanel {
         }));
         // ⌘C — виділені клітинки таблицею з заголовком
         EditorPanel.bind(table, KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_C, Theme.MENU_MASK), "copy-tsv", () -> clip(tsvSelected()));
+        // повне значення клітинки: ⇧↵ (своя прив'язка WHEN_FOCUSED — у JTable ⇧↵ «на рядок вище») і подвійний клік
+        EditorPanel.bind(table, KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ENTER, java.awt.event.InputEvent.SHIFT_DOWN_MASK), "open-cell", this::openCell);
+        table.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (e.getClickCount() == 2 && javax.swing.SwingUtilities.isLeftMouseButton(e)) openCell();
+            }
+        });
         JScrollPane sp = new JScrollPane(table);
         sp.setBorder(BorderFactory.createEmptyBorder());
         sp.getViewport().setBackground(Theme.BG);
@@ -447,4 +454,14 @@ public final class ResultPanel extends JPanel {
     }
 
     public void focusTable() { table.requestFocusInWindow(); }
+
+    // Повне значення виділеної клітинки (подвійний клік, ⇧↵, Перегляд → Повне значення клітинки); false — не обрано
+    public boolean openCell() {
+        int vr = table.getSelectedRow(), vc = table.getSelectedColumn();
+        if (!table.isShowing() || vr < 0 || vc <= 0 || model.r.columns.isEmpty()) return false;
+        int r = table.convertRowIndexToModel(vr), c = table.convertColumnIndexToModel(vc) - 1;
+        ValueWindow.show((javax.swing.JFrame) javax.swing.SwingUtilities.getWindowAncestor(this), model.r.columns.get(c),
+                c < model.r.types.size() ? model.r.types.get(c) : null, model.r.rows.get(r)[c], vr + 1);
+        return true;
+    }
 }
