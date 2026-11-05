@@ -694,7 +694,7 @@ public final class ConnectionsDialog extends JDialog {
             SwingUtilities.invokeLater(() -> {
                 testBtn.setEnabled(true);
                 testBtn.setText(I18n.t("conn.test"));
-                Color col = fo != null ? new Color(0x7CC7A8) : Theme.ERROR;
+                Color col = fo != null ? Theme.OK : Theme.ERROR;
                 testResult.setForeground(col);
                 testResult.setIcon(Ui.icon(fo != null ? Ui.Glyph.PLAY : Ui.Glyph.WARN, col, 12));
                 String s = fo != null ? fo : fe;

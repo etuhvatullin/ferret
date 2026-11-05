@@ -20,8 +20,8 @@ import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
 
-// «Налаштування» (Ctrl+, / ⌘,): мова і перевірка оновлень під час запуску. Мова — після перезапуску (вікна вже
-// побудовані старою мовою), решта — одразу. Кількість останніх серверів — у бічній панелі, там, де видно список.
+// «Налаштування» (Ctrl+, / ⌘,): мова, кольорова тема і перевірка оновлень під час запуску. Мова й тема — після
+// перезапуску (вікна вже побудовані старою мовою й кольорами), решта — одразу. Кількість останніх серверів — у бічній панелі, там, де видно список.
 final class SettingsDialog {
     private SettingsDialog() { }
 
@@ -31,6 +31,15 @@ final class SettingsDialog {
         JComboBox<String> lang = new JComboBox<>(I18n.NAMES.values().toArray(new String[0]));
         Object saved = state.settings.get("language");
         lang.setSelectedIndex(Math.max(0, codes.indexOf(saved instanceof String s && codes.contains(s) ? s : I18n.lang())));
+        JComboBox<Theme.Palette> theme = new JComboBox<>(Theme.PALETTES.toArray(new Theme.Palette[0]));
+        theme.setSelectedItem(Theme.current);
+        theme.setRenderer(new javax.swing.DefaultListCellRenderer() {   // назва теми й крапка її акценту
+            @Override public java.awt.Component getListCellRendererComponent(javax.swing.JList<?> l, Object v, int i, boolean sel, boolean focus) {
+                super.getListCellRendererComponent(l, v, i, sel, focus);
+                if (v instanceof Theme.Palette p) { setText(I18n.t("theme." + p.id)); setIcon(new Sidebar.DotIcon(p.get("accent"))); setIconTextGap(8); }
+                return this;
+            }
+        });
         JCheckBox updates = new JCheckBox(I18n.t("settings.updates"), Json.bool(state.settings.get("checkUpdates"), true));
         updates.setOpaque(false);
 
@@ -38,10 +47,11 @@ final class SettingsDialog {
         form.setBackground(Theme.BG);
         form.setBorder(BorderFactory.createEmptyBorder(22, 24, 22, 24));
         row(form, 0, I18n.t("main.language"), lang);
-        row(form, 1, "", Ui.label(I18n.t("settings.language.note"), Theme.MUTED, false, 11));
-        row(form, 2, "", updates);
+        row(form, 1, I18n.t("settings.theme"), theme);
+        row(form, 2, "", Ui.label(I18n.t("settings.language.note"), Theme.MUTED, false, 11));
+        row(form, 3, "", updates);
         GridBagConstraints end = new GridBagConstraints();
-        end.gridy = 3;
+        end.gridy = 4;
         end.weighty = 1;
         form.add(new JPanel() { { setOpaque(false); } }, end);
 
@@ -55,7 +65,7 @@ final class SettingsDialog {
             String code = codes.get(lang.getSelectedIndex());
             state.settings.put("checkUpdates", updates.isSelected());
             d.dispose();
-            w.chooseLanguage(code);   // зберігає налаштування; інша мова — пропозиція перезапуститись
+            w.chooseLanguageAndTheme(code, ((Theme.Palette) theme.getSelectedItem()).id);   // зберігає; щось інше — пропозиція перезапуститись
         });
         foot.add(cancel);
         foot.add(save);
@@ -66,7 +76,7 @@ final class SettingsDialog {
         d.setContentPane(root);
         d.getRootPane().setDefaultButton(save);
         d.getRootPane().registerKeyboardAction(e -> d.dispose(), KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_IN_FOCUSED_WINDOW);
-        d.setSize(520, 250);
+        d.setSize(520, 290);
         d.setLocationRelativeTo(w);
         d.setVisible(true);
     }

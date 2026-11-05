@@ -54,6 +54,8 @@ Passwords are stored only on your computer, in an encrypted file, and are never 
   MySQL give their own `SHOW CREATE`, BigQuery its `INFORMATION_SCHEMA` DDL, Postgres and MS SQL views their own text;
   for other tables Ferret builds the DDL from the driver's table description (no CHECK constraints, partitions or
   triggers — the window says so). Column comments from the database show as tooltips in the tree.
+- **Themes**: Settings (`Ctrl+,`) → Theme — Burrow (the honey default), Dusk, Indigo, Graphite, Mint, and two light ones,
+  Paper and Frost. The theme changes after a restart.
 - **Full cell value**: double-click a cell, right-click it or press `Shift+Enter` — the whole value with line wrapping, "Format JSON" for JSON.
 
 ## Claude access (MCP)

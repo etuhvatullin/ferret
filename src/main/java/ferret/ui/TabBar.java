@@ -100,8 +100,7 @@ public final class TabBar extends JPanel {
         strip.add(Box.createHorizontalGlue());
         int hidden = state.tabs.size() - shown.size();
         all.setText(String.valueOf(state.tabs.size()));
-        all.putClientProperty(FlatClientProperties.STYLE, hidden > 0 ? "foreground: #F2A33A; borderWidth: 0; focusWidth: 0; arc: 8"
-                : "foreground: #B3A390; borderWidth: 0; focusWidth: 0; arc: 8");
+        all.putClientProperty(FlatClientProperties.STYLE, "foreground: " + Theme.hex(hidden > 0 ? Theme.ACCENT : Theme.MUTED) + "; borderWidth: 0; focusWidth: 0; arc: 8");
         all.setToolTipText(hidden > 0 ? I18n.t("tabs.allHidden", hidden) : I18n.t("tabs.all"));
         strip.revalidate();
         strip.repaint();
@@ -174,7 +173,7 @@ public final class TabBar extends JPanel {
                     JButton b = Ui.plainButton(t.title, new Sidebar.DotIcon(Theme.mark(state.connection(t))));
                     b.setHorizontalAlignment(JButton.LEFT);
                     b.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
-                    if (t == state.current) b.putClientProperty(FlatClientProperties.STYLE, "background: #F2A33A; foreground: #1F1A15; borderWidth: 0; arc: 8");
+                    if (t == state.current) b.putClientProperty(FlatClientProperties.STYLE, "background: " + Theme.hex(Theme.ACCENT) + "; foreground: " + Theme.hex(Theme.ON_ACCENT) + "; borderWidth: 0; arc: 8");
                     b.addActionListener(e -> { m.setVisible(false); state.selectTab(t); });
                     list.add(b);
                 }

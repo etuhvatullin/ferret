@@ -11,6 +11,7 @@ public final class All {
         ferret.core.I18n.use("uk");
         CoreTests.run();
         PlainTextTests.run();
+        ThemeTests.run();
         SqlTextTests.run();
         TableInfoTests.run();
         FormatTests.run();

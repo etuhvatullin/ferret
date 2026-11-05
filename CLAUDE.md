@@ -30,6 +30,12 @@ in git. Code comments are in Ukrainian.
   parsed is moved aside (`Store.setAside`), so the next save can't overwrite it with an empty list. Reported on a
   colleague's Windows (26.10.2026): connections vanished on every restart and the Claude key was new each time, and
   Ferret said nothing — so even the cause could not be seen.
+- **Colours come only from `Theme`** — seven palettes (`Theme.Palette`: Nora, the default, plus Dusk, Indigo, Graphite,
+  Mint, Paper, Frost), chosen at launch from `settings.json` → `theme` (Settings, then a restart, like the language). No hex
+  in UI code: FlatLaf style strings take `Theme.hex(…)`. A new colour is a key in every palette; a new palette must pass
+  `ThemeTests` (all keys, WCAG contrast: text and SQL colours ≥ 4.5:1, accent and server marks ≥ 3:1). The wordmark is
+  drawn in Nora's honey and is recoloured to the theme's accent (`Theme.image`). On macOS the title bar follows the theme
+  (`App.main` sets the appearance before AWT starts — so `Theme` must not touch `Toolkit` while loading).
 - Questions and messages — `ui/Ask` (`confirm` / `inform` / `input`), not `JOptionPane`: its buttons are stretched to
   one width and say "OK" / "Cancel" in English in every language.
 
@@ -54,7 +60,7 @@ stdin/stdout) and its settings (`McpAccess` — rights in `mcp.json`, the key in
 `EditorPanel`, `ResultPanel`, `Sidebar`, `TabBar`, `ConnectionsDialog`, `ClaudeDialog` (Claude access and its log),
 `SettingsDialog`, `AboutDialog`, `TableWindow` (Show table: card + DDL), `ValueWindow` (full cell value), `Help`
 (Help menu: shortcuts built from the menu itself, bug report, links), `SuggestionPopup`, `Splash`, `UpdateBanner`,
-`Theme` / `Ui` ("Nora" colours, drawn icons — never emoji as icons). New non-UI logic goes to `core/` with a test in
+`Theme` / `Ui` (colour themes, drawn icons — never emoji as icons). New non-UI logic goes to `core/` with a test in
 `src/test/java/ferret/tests/`.
 
 ## Languages

@@ -219,8 +219,8 @@ public final class Sidebar extends JPanel {
         seg.setBorder(BorderFactory.createEmptyBorder(3, 3, 3, 3));
         ButtonGroup g = new ButtonGroup();
         for (JToggleButton b : List.of(tablesBtn, consolesBtn)) {
-            b.putClientProperty(FlatClientProperties.STYLE, "selectedBackground: #F2A33A; selectedForeground: #1F1A15; background: #17130F; "
-                    + "borderWidth: 0; focusWidth: 0; arc: 8");
+            b.putClientProperty(FlatClientProperties.STYLE, "selectedBackground: " + Theme.hex(Theme.ACCENT) + "; selectedForeground: "
+                    + Theme.hex(Theme.ON_ACCENT) + "; background: " + Theme.hex(Theme.BG) + "; borderWidth: 0; focusWidth: 0; arc: 8");
             b.setFocusable(false);
             g.add(b);
             seg.add(b);

@@ -38,7 +38,8 @@ public final class App {
         if (Store.MAC) {
             System.setProperty("apple.laf.useScreenMenuBar", "true");
             System.setProperty("apple.awt.application.name", "Ferret");
-            System.setProperty("apple.awt.application.appearance", "NSAppearanceNameDarkAqua");
+            // світла тема — світлий заголовок вікна; рядок у пакеті (package.sh) ставить темний, тут — за темою
+            System.setProperty("apple.awt.application.appearance", Theme.saved().dark ? "NSAppearanceNameDarkAqua" : "NSAppearanceNameAqua");
         }
         System.setProperty("flatlaf.uiScale.allowScaleDown", "true");
         // журнал помилок — у теці даних (вікна не має бути видно з консоллю, а слід лишитись має)
@@ -49,6 +50,7 @@ public final class App {
             System.setErr(out);
         } catch (Exception ignored) { }
         Thread.setDefaultUncaughtExceptionHandler((t, e) -> e.printStackTrace());
+        Theme.use(Theme.saved());   // до перших вікон: далі кольори теми не міняються
         SwingUtilities.invokeLater(() -> {
             Theme.install();
             String snap = System.getenv("FERRET_SNAPSHOT");   // для перевірок: знімок вікна через кілька секунд і вихід

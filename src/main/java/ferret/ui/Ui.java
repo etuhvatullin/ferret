@@ -102,8 +102,13 @@ public final class Ui {
     // Кнопка-дія медом (темний текст на меду — контраст ~9:1).
     public static JButton accentButton(String text, Icon icon) {
         JButton b = new JButton(text, icon);
-        b.putClientProperty(FlatClientProperties.STYLE, "background: #F2A33A; foreground: #1F1A15; disabledText: #6B5A40; borderWidth: 0; "
-                + "focusWidth: 0; innerFocusWidth: 0; arc: 10; font: bold; hoverBackground: #F6B354; pressedBackground: #D98F2C; margin: 4,12,4,12");
+        b.putClientProperty(FlatClientProperties.STYLE, "background: " + Theme.hex(Theme.ACCENT) + "; foreground: " + Theme.hex(Theme.ON_ACCENT)
+                + "; disabledText: " + Theme.hex(Theme.ACCENT_DIM) + "; borderWidth: 0; focusWidth: 0; innerFocusWidth: 0; arc: 10; font: bold; hoverBackground: "
+                + Theme.hex(Theme.ACCENT_HOVER) + "; pressedBackground: " + Theme.hex(Theme.ACCENT_PRESSED) + "; margin: 4,12,4,12"
+                // кнопка «за замовчуванням» (Enter у вікні) — ті самі кольори: світла тема FlatLaf малює її білою з рамкою
+                + "; default.background: " + Theme.hex(Theme.ACCENT) + "; default.foreground: " + Theme.hex(Theme.ON_ACCENT)
+                + "; default.hoverBackground: " + Theme.hex(Theme.ACCENT_HOVER) + "; default.pressedBackground: " + Theme.hex(Theme.ACCENT_PRESSED)
+                + "; default.focusedBackground: " + Theme.hex(Theme.ACCENT) + "; default.borderWidth: 0");
         b.setFocusable(false);
         return b;
     }

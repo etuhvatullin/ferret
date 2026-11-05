@@ -110,7 +110,7 @@ public final class Splash extends JFrame {
         JPanel left = new JPanel(new GridBagLayout()) {
             @Override protected void paintComponent(Graphics g0) {
                 Graphics2D g = (Graphics2D) g0.create();
-                g.setPaint(new GradientPaint(0, 0, new Color(0x241D16), 0, getHeight(), Theme.BG));
+                g.setPaint(new GradientPaint(0, 0, Theme.SPLASH_TOP, 0, getHeight(), Theme.BG));
                 g.fillRect(0, 0, getWidth(), getHeight());
                 g.setColor(Theme.LINE);
                 g.fillRect(getWidth() - 1, 0, 1, getHeight());
@@ -314,7 +314,7 @@ public final class Splash extends JFrame {
             g.setColor(Theme.LINE);
             g.fill(track);
             if (p >= 0) {
-                g.setPaint(new GradientPaint(0, 0, new Color(0xE0882A), (float) Math.max(1, w * p), 0, Theme.ACCENT));
+                g.setPaint(new GradientPaint(0, 0, Theme.ACCENT_DEEP, (float) Math.max(1, w * p), 0, Theme.ACCENT));
                 g.fill(new RoundRectangle2D.Double(0, 0, Math.max(h, w * p), h, h, h));
             } else {
                 double e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;   // плавно на краях, швидше посередині

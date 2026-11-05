@@ -440,11 +440,16 @@ public final class MainWindow extends JFrame {
         }
     }
 
-    void chooseLanguage(String code) {
+    // Мова й тема діють з наступного запуску: зберегти; щось змінилось — запропонувати перезапуститись
+    void chooseLanguageAndTheme(String code, String theme) {
         state.settings.put("language", code);
+        state.settings.put("theme", theme);
         state.saveSettings();
-        if (code.equals(I18n.lang())) return;   // повернули ту, якою вікно вже говорить
-        if (Ask.confirm(this, I18n.t("main.restart.title"), I18n.t("main.restart.text"), I18n.t("main.restart.now"), I18n.t("main.restart.later")))
+        boolean lang = !code.equals(I18n.lang()), look = !theme.equals(Theme.current.id);   // повернули ту, що вже діє, — нічого
+        if (!lang && !look) return;
+        String title = I18n.t(look ? "settings.title" : "main.restart.title");
+        String text = I18n.t(lang && look ? "main.restart.both" : lang ? "main.restart.text" : "main.restart.theme");
+        if (Ask.confirm(this, title, text, I18n.t("main.restart.now"), I18n.t("main.restart.later")))
             App.restart(this, this::saveState);
     }
 
