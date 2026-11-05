@@ -48,13 +48,13 @@ Passwords are stored only on your computer, in an encrypted file, and are never 
   rows containing the text. Select cells → `Ctrl+C` pastes as a table into Excel / Google Sheets; "Copy all" and
   "Save CSV…" take exactly what you see.
 - Every tab is a query with its own server. Closed tabs are kept under "Consoles" on the left.
-- **Show table** (right-click a table on the left, or `Ctrl+B` on a table name in the query) opens a window with the
+- **Show table** (right-click a table on the left or a table name in the query, or `Ctrl+B` on the name) opens a window with the
   table's DDL and its card: data until (the max of its date column from file statistics), last write, rows, size and
   partitions — read from metadata only, the table itself is never scanned; estimates are marked. Trino, ClickHouse and
   MySQL give their own `SHOW CREATE`, BigQuery its `INFORMATION_SCHEMA` DDL, Postgres and MS SQL views their own text;
   for other tables Ferret builds the DDL from the driver's table description (no CHECK constraints, partitions or
   triggers — the window says so). Column comments from the database show as tooltips in the tree.
-- **Full cell value**: double-click a cell or `Shift+Enter` — the whole value with line wrapping, "Format JSON" for JSON.
+- **Full cell value**: double-click a cell, right-click it or press `Shift+Enter` — the whole value with line wrapping, "Format JSON" for JSON.
 
 ## Claude access (MCP)
 

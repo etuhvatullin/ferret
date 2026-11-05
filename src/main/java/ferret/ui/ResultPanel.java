@@ -359,6 +359,15 @@ public final class ResultPanel extends JPanel {
             @Override public void mouseClicked(java.awt.event.MouseEvent e) {
                 if (e.getClickCount() == 2 && javax.swing.SwingUtilities.isLeftMouseButton(e)) openCell();
             }
+
+            // правий клік: клітинка під мишею стає виділеною (якщо вона не в уже виділеному), далі — меню
+            @Override public void mousePressed(java.awt.event.MouseEvent e) {
+                if (!(javax.swing.SwingUtilities.isRightMouseButton(e) || e.isPopupTrigger())) return;
+                int row = table.rowAtPoint(e.getPoint()), col = table.columnAtPoint(e.getPoint());
+                if (row < 0 || col < 0) return;
+                if (!table.isCellSelected(row, col)) table.changeSelection(row, col, false, false);
+                cellMenu().show(table, e.getX(), e.getY());
+            }
         });
         JScrollPane sp = new JScrollPane(table);
         sp.setBorder(BorderFactory.createEmptyBorder());
@@ -454,6 +463,21 @@ public final class ResultPanel extends JPanel {
     }
 
     public void focusTable() { table.requestFocusInWindow(); }
+
+    // Меню правого кліку по результату: повне значення клітинки й копіювання виділеного (те саме, що ⌘C)
+    javax.swing.JPopupMenu cellMenu() {
+        javax.swing.JPopupMenu m = new javax.swing.JPopupMenu();
+        javax.swing.JMenuItem full = new javax.swing.JMenuItem(I18n.t("main.menu.cellvalue"));
+        full.setAccelerator(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ENTER, java.awt.event.InputEvent.SHIFT_DOWN_MASK));
+        full.setEnabled(table.getSelectedColumn() > 0);   // колонка «#» — номер рядка, не значення
+        full.addActionListener(e -> openCell());
+        m.add(full);
+        javax.swing.JMenuItem copy = new javax.swing.JMenuItem(I18n.t("cell.copy"));
+        copy.setAccelerator(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_C, Theme.MENU_MASK));
+        copy.addActionListener(e -> clip(tsvSelected()));
+        m.add(copy);
+        return m;
+    }
 
     // Повне значення виділеної клітинки (подвійний клік, ⇧↵, Перегляд → Повне значення клітинки); false — не обрано
     public boolean openCell() {

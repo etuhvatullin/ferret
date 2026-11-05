@@ -91,6 +91,7 @@ public final class MainWindow extends JFrame {
         sidebar.onEditConnection = c -> openConnections(c == null ? null : c.id, null);
         sidebar.onNewConnection = () -> openConnections(null, DBKind.TRINO);
         sidebar.onInsert = editor::insertText;
+        editor.onShowTableAt = this::showTableAt;
         sidebar.onShowTable = path -> { if (state.currentConnection() != null) TableWindow.show(this, state.currentConnection(), path, editor::insertText); };
 
         split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, editor, result);
@@ -405,11 +406,16 @@ public final class MainWindow extends JFrame {
     void showTable() {
         List<String> picked = focusIn(sidebar) ? sidebar.selectedTable() : null;
         if (picked != null && state.currentConnection() != null) { TableWindow.show(this, state.currentConnection(), picked, editor::insertText); return; }
+        if (editor.area() != null) showTableAt(editor.area().getCaretPosition());
+    }
+
+    // Таблиця за назвою в цьому місці тексту поточної консолі (⌘B — курсор, правий клік — де клацнули)
+    void showTableAt(int pos) {
         Connection c = state.connection(state.current);
         org.fife.ui.rsyntaxtextarea.RSyntaxTextArea a = editor.area();
         if (c == null || a == null) return;
         String title = I18n.t("main.menu.showtable");
-        List<String> name = ferret.core.SqlText.nameAt(a.getText(), a.getCaretPosition());
+        List<String> name = ferret.core.SqlText.nameAt(a.getText(), pos);
         if (name.isEmpty()) { Ask.inform(this, title, I18n.t("table.noName")); return; }
         List<List<String>> known = state.tables.get(c.id);
         List<List<String>> hits = known == null ? List.of() : ferret.core.SqlText.tablesNamed(known, name);
@@ -427,7 +433,7 @@ public final class MainWindow extends JFrame {
             m.add(i);
         }
         try {
-            java.awt.geom.Rectangle2D r = a.modelToView2D(a.getCaretPosition());
+            java.awt.geom.Rectangle2D r = a.modelToView2D(pos);
             m.show(a, (int) r.getX(), (int) (r.getY() + r.getHeight()));
         } catch (Exception e) {
             m.show(a, 0, 0);

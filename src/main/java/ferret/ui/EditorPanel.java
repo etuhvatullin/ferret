@@ -63,6 +63,7 @@ public final class EditorPanel extends JPanel {
     private final JTextField findField = new JTextField();
     private final JCheckBox matchCase = new JCheckBox("Aa");
     public Consumer<String> onRun = sql -> { };
+    public java.util.function.IntConsumer onShowTableAt = pos -> { };   // правий клік → «Показати таблицю» (позиція в тексті)
 
     final class Ed {
         final ConsoleTab tab;
@@ -97,9 +98,21 @@ public final class EditorPanel extends JPanel {
                 @Override public void changedUpdate(DocumentEvent e) { }
             });
             area.addCaretListener(e -> tab.cursor = e.getDot());
+            int[] clicked = {-1};   // де клацнули правою: назва береться звідти, а не з курсора (як у DataGrip)
             area.addMouseListener(new MouseAdapter() {
-                @Override public void mousePressed(MouseEvent e) { hidePopup(); }
+                @Override public void mousePressed(MouseEvent e) {
+                    hidePopup();
+                    if (SwingUtilities.isRightMouseButton(e) || e.isPopupTrigger()) clicked[0] = area.viewToModel2D(e.getPoint());
+                }
             });
+            javax.swing.JPopupMenu menu = area.getPopupMenu();   // меню RSyntaxTextArea (вирізати, копіювати…) — наш пункт першим
+            if (menu != null) {
+                javax.swing.JMenuItem show = new javax.swing.JMenuItem(I18n.t("main.menu.showtable"));
+                show.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_B, Theme.MENU_MASK));   // лише підпис: діє клавіша з меню «Перегляд»
+                show.addActionListener(e -> onShowTableAt.accept(clicked[0] >= 0 ? clicked[0] : area.getCaretPosition()));
+                menu.insert(show, 0);
+                menu.insert(new javax.swing.JPopupMenu.Separator(), 1);
+            }
             area.addFocusListener(new java.awt.event.FocusAdapter() {
                 @Override public void focusLost(java.awt.event.FocusEvent e) { hidePopup(); }
             });

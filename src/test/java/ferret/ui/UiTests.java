@@ -535,6 +535,16 @@ public final class UiTests {
         javax.swing.JDialog cell2 = waitWindow(ferret.core.I18n.t("cell.title", "B", 2));
         check(cell2 != null, "подвійний клік по клітинці — те саме вікно");
         if (cell2 != null) ui(cell2::dispose);
+        // правий клік по клітинці — меню з «Повне значення клітинки»
+        java.awt.Rectangle rc3 = t2.getCellRect(2, 2, true);
+        r.mouseMove(tp.x + rc3.x + rc3.width / 2, tp.y + rc3.y + rc3.height / 2);
+        r.mousePress(java.awt.event.InputEvent.BUTTON3_DOWN_MASK);
+        r.mouseRelease(java.awt.event.InputEvent.BUTTON3_DOWN_MASK);
+        pause(300);
+        click(r, menuItem(ferret.core.I18n.t("main.menu.cellvalue")));
+        javax.swing.JDialog cell3 = waitWindow(ferret.core.I18n.t("cell.title", "B", 3));
+        check(cell3 != null, "правий клік по клітинці → «Повне значення клітинки» — вікно «B · рядок 3»");
+        if (cell3 != null) ui(cell3::dispose);
         // ⌘B на назві таблиці в редакторі — вікно «Таблиця» (H2: DDL складено з опису драйвера)
         Connection wr = h2.copy();
         wr.readOnly = false;
@@ -548,6 +558,18 @@ public final class UiTests {
         boolean ddl = tw != null && waitFor(() -> find(tw.getContentPane(), RSyntaxTextArea.class).getText().startsWith("CREATE TABLE PUBLIC.UI_T"));
         check(known && ddl, "⌘B на назві таблиці — вікно «Таблиця» з DDL" + (known ? "" : " (таблиці не підтягнулись у підказку)"));
         if (tw != null) ui(tw::dispose);
+        // правий клік по назві в редакторі — «Показати таблицю» першим пунктом меню, назва — де клацнули
+        ui(() -> w.editor.area().setCaretPosition(0));
+        java.awt.geom.Rectangle2D nr = w.editor.area().modelToView2D(16);
+        java.awt.Point ap = w.editor.area().getLocationOnScreen();
+        r.mouseMove(ap.x + (int) nr.getX() + 2, ap.y + (int) nr.getCenterY());
+        r.mousePress(java.awt.event.InputEvent.BUTTON3_DOWN_MASK);
+        r.mouseRelease(java.awt.event.InputEvent.BUTTON3_DOWN_MASK);
+        pause(300);
+        click(r, menuItem(ferret.core.I18n.t("main.menu.showtable")));
+        javax.swing.JDialog tw2 = waitWindow("UI_T — PUBLIC");
+        check(tw2 != null, "правий клік по назві таблиці в редакторі → «Показати таблицю» (курсор був на початку тексту)");
+        if (tw2 != null) ui(tw2::dispose);
         ui(() -> { w.editor.area().setText("delete from t"); w.editor.area().setCaretPosition(3); });
         focusEditor(r, w);
         press(r, m, KeyEvent.VK_ENTER);
@@ -563,6 +585,23 @@ public final class UiTests {
             pause(100);
         }
         return false;
+    }
+
+    // Пункт відкритого контекстного меню — шукаємо в усіх вікнах (меню буває окремим вікном або шаром головного)
+    static javax.swing.JMenuItem menuItem(String text) {
+        for (java.awt.Window x : java.awt.Window.getWindows()) {
+            javax.swing.JMenuItem i = item(x, text);
+            if (i != null) return i;
+        }
+        return null;
+    }
+
+    static javax.swing.JMenuItem item(java.awt.Container c, String text) {
+        for (java.awt.Component x : c.getComponents()) {
+            if (x instanceof javax.swing.JMenuItem i && text.equals(i.getText()) && i.isShowing()) return i;
+            if (x instanceof java.awt.Container k) { var f = item(k, text); if (f != null) return f; }
+        }
+        return null;
     }
 
     static javax.swing.JDialog waitWindow(String title) throws Exception {
